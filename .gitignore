@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# data and outputs never go into git
+/data/
+/runs/
+*.tar.gz
+*.pt
+*.pth
+*.npy

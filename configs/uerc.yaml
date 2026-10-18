@@ -1,0 +1,17 @@
+# S4: UERC 2023 public set. Final scale, runs on the DGX.
+name: uerc
+data:
+  root: "/dgx1/dsamantaai/santhosh/Ear_Datasets/UERC 2023 Competition Package with sequestered anonymized data/data/public"
+  identity_regex: null                 # public/<cid>/...
+  manifest: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/uerc/manifest.csv
+  splits: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/uerc/splits_seed{seed}.csv
+  img_size: [128, 96]                 # [h, w]; ears are ~1.4x taller than wide
+
+splits:
+  seeds: [0]                           # large set: one split, 3 training seeds instead
+  min_images: 4
+  frac_train: 0.70
+  frac_val: 0.10
+  known_frac: 0.5
+  n_gallery: 2
+  stratify_by: source                  # TODO: fill the source column (3 source datasets)

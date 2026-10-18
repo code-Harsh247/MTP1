@@ -1,0 +1,19 @@
+# S2: EarVN1.0. Main development set.
+# On disk (verified 2026-10-18): earvn/Images/<NNN.Name>/<NNN (k)>.jpg, 164 ids, 28,412 images
+# (median 163 per id). Images are tiny (median 77x110 px), so 128x96 is already upsampling.
+name: earvn
+data:
+  root: data/earvn/Images
+  identity_regex: null                 # identity = folder name under Images/
+  manifest: data/earvn/manifest.csv
+  splits: data/earvn/splits_seed{seed}.csv
+  img_size: [128, 96]                 # [h, w]; ears are ~1.4x taller than wide
+
+splits:
+  seeds: [0, 1, 2, 3, 4]
+  min_images: 4
+  frac_train: 0.70
+  frac_val: 0.10
+  known_frac: 0.5
+  n_gallery: 2
+  stratify_by: source

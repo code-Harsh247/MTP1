@@ -1,0 +1,19 @@
+# S3: AWE (Annotated Web Ears). Hard in-the-wild set.
+# On disk (verified 2026-10-18): awe/{train,test}/<id>/01..10.png + annotations.json per id,
+# 100 ids x 10 images. The json holds per-image annotations (we may use left/right side later).
+name: awe
+data:
+  root: data/awe
+  identity_regex: '([^/]+)/[^/]+$'     # identity = the folder that holds the image
+  manifest: data/awe/manifest.csv
+  splits: data/awe/splits_seed{seed}.csv
+  img_size: [128, 96]                 # [h, w]; ears are ~1.4x taller than wide
+
+splits:
+  seeds: [0, 1, 2, 3, 4]
+  min_images: 4
+  frac_train: 0.70
+  frac_val: 0.10
+  known_frac: 0.5
+  n_gallery: 2
+  stratify_by: source

@@ -1,0 +1,19 @@
+# S1: AMI ear database. Sanity-check stage.
+# On disk (verified 2026-10-18): ami/{train,test}/<id>/<id>_<view>_ear.jpg, 101 ids x 7 views, 707 images.
+# The dataset's own train/test folders are ignored: we merge them and make our own open-set splits.
+name: ami
+data:
+  root: data/ami
+  identity_regex: '([^/]+)/[^/]+$'     # identity = the folder that holds the image
+  manifest: data/ami/manifest.csv
+  splits: data/ami/splits_seed{seed}.csv
+  img_size: [128, 96]                 # [h, w]; ears are ~1.4x taller than wide
+
+splits:
+  seeds: [0, 1, 2, 3, 4]               # small set: report mean +- std over these splits
+  min_images: 4
+  frac_train: 0.70
+  frac_val: 0.10
+  known_frac: 0.5
+  n_gallery: 2
+  stratify_by: source
