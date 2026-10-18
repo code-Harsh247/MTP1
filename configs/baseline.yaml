@@ -1,0 +1,22 @@
+# Phase 2 baseline: ImageNet-pretrained ResNet + ArcFace, open-set scoring on embeddings.
+# Tuned 2026-10-19 on EarVN seed-0 VALIDATION only (scripts/tune_earvn.sh, 12 configs);
+# used unchanged for every dataset. Key finding: val DIR@FAR peaks at ~5 epochs and then
+# degrades as the embedding over-fits the 115 training identities.
+#   round-2 winner, val cosine_proto @ epoch 5: DIR@FAR5% 0.377, AUROC 0.781, rank-1 0.747
+train:
+  arch: resnet50
+  pretrained: true
+  emb_dim: 512
+  epochs: 5
+  batch_size: 64
+  lr_body: 2.0e-4           # pretrained layers
+  lr_head: 2.0e-3           # new neck + ArcFace weights
+  weight_decay: 5.0e-3
+  warmup_epochs: 1
+  dropout: 0.3              # before the embedding layer
+  aug: {degrees: 20.0, translate: 0.1, scale: [0.8, 1.2], jitter: 0.4}
+  arcface_s: 30.0
+  arcface_m: 0.3
+  amp: true
+  eval_every: 1             # epochs; val metrics only (test is touched once, at the end)
+scorers: [cosine_proto, cosine_max, subspace]

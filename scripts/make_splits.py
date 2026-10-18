@@ -22,6 +22,7 @@ def main():
     cfg = yaml.safe_load(open(args.config))
     d, s = cfg["data"], dict(cfg["splits"])
     seeds = s.pop("seeds")
+    variants = s.pop("variants", {}) or {}
 
     manifest_path = Path(d["manifest"])
     if manifest_path.exists() and not args.rebuild_manifest:
@@ -42,6 +43,22 @@ def main():
         df.to_csv(out, index=False)
         print(f"\nseed {seed} -> {out}")
         print(summarize(df).to_string(index=False))
+        # Evaluation-only variants (e.g. more gallery images): same identities in every
+        # split, only the gallery/probe roles differ, so one trained model serves all.
+        for name, override in variants.items():
+            v = make_splits(manifest, seed=seed, **{**s, **override})
+            if not v[["path", "split", "known"]].equals(df[["path", "split", "known"]]):
+                raise ValueError(f"variant {name} changed identities; it may only change roles")
+            vout = Path(variant_path(d["splits"], name).format(seed=seed))
+            v.to_csv(vout, index=False)
+            g = summarize(v).set_index("split")
+            print(f"  variant {name} -> {vout}  (test gallery {g.loc['test', 'gallery_imgs']}, "
+                  f"probes {g.loc['test', 'probe_imgs']})")
+
+
+def variant_path(template, name):
+    p = Path(template)
+    return str(p.with_name(p.name.replace("splits_", f"splits_{name}_", 1)))
 
 
 if __name__ == "__main__":

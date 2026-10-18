@@ -17,3 +17,5 @@ splits:
   known_frac: 0.5
   n_gallery: 2
   stratify_by: source
+  variants:                            # evaluation-only: same people, more enrollment images
+    g5: {n_gallery: 5, min_images: 6}  # EarVN has >=107 images/id, so nobody is dropped
