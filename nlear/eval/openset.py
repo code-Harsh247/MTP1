@@ -66,6 +66,17 @@ SCORERS = {"cosine_proto": score_cosine_proto, "cosine_max": score_cosine_max,
            "subspace": score_subspace}
 
 
+def _register_evm():
+    from .evm import make_evm  # local import: evm imports scipy
+    # Tail sizes chosen on EarVN validation, 5 seeds (notes/phase2_baseline.md, EVM section;
+    # log in runs/earvn/evm_tune.log). Rule: best val DIR@FAR=5%, tie-break val AUROC.
+    SCORERS["evm"] = make_evm(tail=14, negatives="gallery")
+    SCORERS["evm_trainneg"] = make_evm(tail=1000, negatives="train")
+
+
+_register_evm()
+
+
 def threshold_at_far(unknown_scores, far):
     """tau such that a fraction `far` of unknown probes has score > tau."""
     return float(np.quantile(unknown_scores, 1.0 - far)) if len(unknown_scores) else float("inf")

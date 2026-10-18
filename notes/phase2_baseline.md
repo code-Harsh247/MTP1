@@ -110,6 +110,50 @@ AWE (10 known / 10 unknown test ids; 80 known and 100 unknown probes):
 | EarVN1.0 (in the wild) | 0.591 ± 0.084 | 0.716 ± 0.044 | 0.209 ± 0.049 | 0.103 |
 | AWE (in the wild, tiny) | 0.410 ± 0.065 | 0.626 ± 0.052 | 0.105 ± 0.048 | 0.284 |
 
+## EVM (Extreme Value Machine)
+
+Implementation is in `nlear/eval/evm.py` (Rudd et al., TPAMI 2017).
+
+- **Fitting:** each gallery embedding gets a Weibull fitted to its `tail` smallest half-distances (cosine) to negatives. An identity's score is its best per-image score.
+- **Simplification:** no extreme-vector set-cover reduction. With 2–5 gallery images per identity, every image is kept.
+- **Score transform:** scores are s = κ·log(λ/d) = −log(−log Ψ). This is strictly increasing in the EVM inclusion probability Ψ, so every decision and AUROC equal Ψ's. Ψ itself underflowed to exactly 0 (arbitrary argmax ties), and log Ψ overflowed for tight tails; both were found while tuning.
+- **Two negative sets:**
+  - `evm`: only the other enrolled identities' gallery images, as in the original EVM.
+  - `evm_trainneg`: also the training-identity embeddings, which are known non-matches available at enrollment.
+
+**Tail size, chosen on EarVN validation over 5 seeds** (`scripts/rescore.py --val-only`, log `runs/earvn/evm_tune.log`). Rule: best val DIR@5%, tie-break AUROC.
+
+| Val, EarVN, 2 gallery | DIR@5% | AUROC |
+|---|---|---|
+| cosine_proto (reference) | **0.320 ± 0.076** | **0.779** |
+| evm, tail 3 / 5 / 10 / **14** | 0.248 / 0.251 / 0.252 / **0.252** | 0.697 / 0.719 / 0.725 / **0.733** |
+| evm_trainneg, tail 10 / 50 / 200 / **1000** | 0.189 / 0.228 / 0.171 / **0.244** | 0.673 / 0.693 / 0.593 / **0.672** |
+
+Every EVM setting is below cosine_proto already on validation. The train-negative variant is erratic across tail sizes, which points to unstable Weibull fits.
+
+**Test results, 5 seeds:**
+
+| Dataset | Scorer | Rank-1 | AUROC | DIR@5% | cal DIR@5% (actual FAR) |
+|---|---|---|---|---|---|
+| EarVN | cosine_proto | **0.591 ± 0.084** | **0.716 ± 0.044** | **0.209 ± 0.049** | 0.280 (0.103) |
+| | evm | 0.475 ± 0.088 | 0.659 ± 0.028 | 0.159 ± 0.043 | 0.104 (**0.026**) |
+| | evm_trainneg | 0.395 ± 0.113 | 0.629 ± 0.051 | 0.147 ± 0.041 | 0.193 (0.141) |
+| EarVN g5 | cosine_proto | **0.720 ± 0.032** | **0.767 ± 0.033** | **0.316 ± 0.036** | 0.402 (0.109) |
+| | evm | 0.579 ± 0.013 | 0.687 ± 0.033 | 0.207 ± 0.055 | 0.169 (**0.044**) |
+| | evm_trainneg | 0.528 ± 0.046 | 0.680 ± 0.042 | 0.213 ± 0.029 | 0.299 (0.166) |
+| AMI | cosine_proto | 0.948 ± 0.027 | 0.937 ± 0.022 | 0.760 ± 0.052 | 0.852 (0.194) |
+| | evm | 0.924 ± 0.008 | 0.933 ± 0.029 | 0.756 ± 0.065 | 0.744 (0.094) |
+| | evm_trainneg | 0.948 ± 0.010 | 0.935 ± 0.027 | 0.776 ± 0.079 | 0.856 (0.214) |
+| AWE | cosine_proto | **0.410 ± 0.065** | 0.626 ± 0.052 | **0.105 ± 0.048** | 0.230 (0.284) |
+| | evm | 0.352 ± 0.042 | 0.625 ± 0.042 | 0.087 ± 0.050 | 0.128 (0.092) |
+| | evm_trainneg | 0.383 ± 0.066 | 0.628 ± 0.068 | 0.070 ± 0.034 | 0.210 (0.228) |
+
+Reading:
+
+- **EVM does not beat cosine_proto** on any dataset. It is clearly worse on EarVN and tied on AMI and AWE, within one std. With only 2–5 gallery images per identity, the per-image Weibull fits are too noisy to help; EVM was designed for many samples per class.
+- **One EVM advantage: calibration.** With gallery negatives, a τ set on validation lands much closer to the target on test. On EarVN the actual FAR is 0.026–0.044 against a 0.05 target, versus about 0.10 for cosine. EVM's per-image normalization makes its scores more comparable across identities, though at a lower DIR.
+- **For Phase 3,** cosine_proto remains the baseline to beat. EVM is reported as the standard open-set comparison and as a calibration reference.
+
 ## Conclusions for Phase 3
 
 1. **The baseline to beat is `cosine_proto`.** It is best or tied on all three datasets. The `subspace` scorer (≈ linear-memory surprise) never clearly beats it and is worse on EarVN and AWE. So the NL memory must do something a linear subspace can't (deep memory, meta-learned write rule), exactly as anticipated in the notes.
@@ -119,5 +163,4 @@ AWE (10 known / 10 unknown test ids; 80 known and 100 unknown probes):
 
 ## Not done yet
 
-- **EVM** (Extreme Value Machine) as an extra rejection baseline. It is listed in plan.md Phase 2 but not implemented. Add it before the final thesis tables; it isn't needed for the Phase 3 go/no-go decision.
 - **Cross-dataset tests** (EarVN → AWE/IITD) are Phase 5.
