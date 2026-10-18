@@ -1,6 +1,16 @@
 # Plan v3 (draft): Continual ear recognition with Nested Learning
 
-*Drafted 2026-10-19 after the Phase 3 kill test came out no-go (`notes/phase3_killtest.md`). This needs the supervisor's agreement before work starts.*
+*Drafted 2026-10-19 after the Phase 3 kill test came out no-go (`notes/phase3_killtest.md`).*
+
+**Status 2026-10-19:** adopted. The user waived supervisor sign-off (C0).
+
+Defaults for the §8 questions:
+
+1. The new question is accepted.
+2. P1 (identity-incremental) comes first.
+3. Replay is run as a baseline, and CMS is judged under both §5 conditions: (a) without stored data, (b) on top of replay.
+4. Phase 3 is reported as its own chapter.
+5. Deadline unknown: C4/C5 scope is decided after C3.
 
 ## 1. Why this direction
 
@@ -88,8 +98,8 @@ Both outcomes are reportable. Phases 1–3 plus a clean continual-learning compa
 
 | Phase | Work | Where | Done when |
 |---|---|---|---|
-| **C0. Sign-off** | Supervisor agrees on the question, protocols and decision rule | — | Written OK |
-| **C1. Continual harness** | Task splits and held-out seen-identity images; sequential trainer; accuracy matrix A[t, j], forgetting and U[t]; joint and naive baselines | Laptop (EarVN) | Joint vs. naive shows clear forgetting on 5 seeds |
+| **C0. Sign-off** (waived) | Supervisor agrees on the question, protocols and decision rule | — | Waived by the user, 2026-10-19 |
+| **C1. Continual harness** ✅ — [notes/c1_continual_harness.md](notes/c1_continual_harness.md): naive forgets 0.17 DIR@5%; joint 0.49 vs naive 0.18 seen DIR@5% | Task splits and held-out seen-identity images; sequential trainer; accuracy matrix A[t, j], forgetting and U[t]; joint and naive baselines | Laptop (EarVN) | Joint vs. naive shows clear forgetting on 5 seeds |
 | **C2. Baselines** | EWC, LwF, replay (buffer sizes 2 and 5 images per id); tuned on validation tasks only | Laptop | Baseline table on P1 |
 | **C3. CMS neck** | CMS module (Eq. 70–71, levels and frequencies), unit tests; CMS and CMS + replay; optional M3; **decision rule §5** | Laptop | Go / no-go on P1 |
 | **C4. Scale-up** | If go: ViT-S + CMS; P2 domain-incremental AMI → EarVN → AWE | Laptop → DGX | P2 table |

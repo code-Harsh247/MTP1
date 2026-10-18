@@ -38,7 +38,9 @@ class ArcFace(nn.Module):
         nn.init.xavier_uniform_(self.weight)
         self.s, self.m = s, m
 
-    def forward(self, emb, labels):
+    def forward(self, emb, labels, active=None):
+        """active: optional bool mask [num_classes]; inactive classes are excluded from the
+        softmax (class-incremental learning: only classes seen so far compete)."""
         cos = F.linear(F.normalize(emb), F.normalize(self.weight)).clamp(-1 + 1e-7, 1 - 1e-7)
         target = torch.cos(torch.acos(cos) + self.m)
         # Standard insightface guard: past theta = pi - m, cos(theta + m) stops being
@@ -47,4 +49,7 @@ class ArcFace(nn.Module):
         target = torch.where(cos > th, target, cos - mm)
         onehot = F.one_hot(labels, cos.shape[1]).bool()
         logits = torch.where(onehot, target, cos) * self.s
+        if active is not None:
+            logits = logits.masked_fill(~active.to(logits.device), float("-inf"))
+            cos = cos.masked_fill(~active.to(cos.device), -2.0)
         return F.cross_entropy(logits, labels), cos
