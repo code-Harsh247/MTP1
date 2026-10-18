@@ -20,6 +20,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.eval.evm import make_evm  # noqa: E402
+from nlear.memory import AssocMemory, make_memory_scorer  # noqa: E402
 from nlear.eval.openset import SCORERS  # noqa: E402
 from nlear.eval.protocol import run_protocol, variant_blobs  # noqa: E402
 
@@ -30,6 +31,12 @@ def resolve(spec):
     if spec.startswith("evm:"):
         _, negatives, tail = spec.split(":")
         return make_evm(int(tail), negatives)
+    if spec.startswith("mem:"):
+        # mem:<linear|mlp>:<hidden>:<steps>:<lr>:<momentum>:<forget>  (untrained memory)
+        _, arch, hidden, steps, lr, mom, fgt = spec.split(":")
+        mem = AssocMemory(512, arch=arch, hidden=int(hidden), steps=int(steps), lr=float(lr),
+                          momentum=float(mom), forget=float(fgt))
+        return make_memory_scorer(mem, device="cuda" if torch.cuda.is_available() else "cpu")
     return SCORERS[spec]
 
 
@@ -40,7 +47,8 @@ def main():
     ap.add_argument("--val-only", action="store_true")
     args = ap.parse_args()
 
-    runs = sorted(Path(args.method_dir).glob("seed*/embeddings.pt"))
+    d = Path(args.method_dir)  # a method dir (seed*/ inside) or a single seed dir
+    runs = [d / "embeddings.pt"] if (d / "embeddings.pt").exists() else sorted(d.glob("seed*/embeddings.pt"))
     assert runs, f"no embeddings under {args.method_dir}"
     collected = {}  # (scorer key) -> list of metric dicts, one per seed
     for emb_path in runs:
@@ -51,7 +59,13 @@ def main():
         for vname, vblob in variant_blobs(blob, cfg["data"], cfg["seed"]).items():
             for spec in args.scorer:
                 key = spec + (f"@{vname}" if vname else "")
-                r = run_protocol(vblob, resolve(spec))
+                try:
+                    r = run_protocol(vblob, resolve(spec))
+                except ValueError as e:  # non-finite scores: the memory write diverged
+                    if "NaN" not in str(e) and "infinity" not in str(e):
+                        raise
+                    print(f"  {key}: diverged (non-finite scores), skipped")
+                    continue
                 results[key] = {"val": r["val"]} if args.val_only else r
                 collected.setdefault(key, []).append(r["val" if args.val_only else "test"])
         if not args.val_only:

@@ -31,7 +31,8 @@ def variant_blobs(blob, data_cfg, seed):
     for name in (data_cfg["splits"].get("variants") or {}):
         vpath = template.with_name(template.name.replace("splits_", f"splits_{name}_", 1))
         v = pd.read_csv(vpath, dtype={"identity": str, "path": str}).set_index("path").loc[blob["path"]]
-        assert (v["split"].to_numpy() == blob["split"]).all(), f"variant {name} changes splits"
+        same = np.where(blob["split"] == "meta", "train", blob["split"])  # meta = held-out train ids
+        assert (v["split"].to_numpy() == same).all(), f"variant {name} changes splits"
         out[name] = dict(blob, role=v["role"].to_numpy(), known=v["known"].to_numpy())
     return out
 

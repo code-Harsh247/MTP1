@@ -18,7 +18,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.data.cache import GPUAugment, load_image_cache, to_input  # noqa: E402
 from nlear.data.manifest import load_manifest  # noqa: E402
-from nlear.eval.protocol import run_protocol  # noqa: E402
+from nlear.eval.protocol import run_protocol, variant_blobs  # noqa: E402
 from nlear.models import ArcFace, EmbeddingNet  # noqa: E402
 
 
@@ -59,6 +59,8 @@ def main():
     ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE",
                     help="override train config, e.g. arch=resnet50 aug.degrees=15")
     ap.add_argument("--tag", default="", help="suffix for the run folder")
+    ap.add_argument("--meta-frac", type=float, default=0.0,
+                    help="hold out this fraction of train identities from the backbone (split='meta')")
     ap.add_argument("--val-only", action="store_true",
                     help="tuning mode: compute and save validation metrics only, never test")
     args = ap.parse_args()
@@ -77,7 +79,7 @@ def main():
     np.random.seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    method = f"baseline_{t['arch']}" + (f"_{args.tag}" if args.tag else "")
+    method = ("splitbb_" if args.meta_frac else "baseline_") + t["arch"] + (f"_{args.tag}" if args.tag else "")
     run_dir = Path(args.out) / dcfg["name"] / ("tune" if args.val_only else "") / method / f"seed{args.seed}"
     run_dir.mkdir(parents=True, exist_ok=True)
     yaml.safe_dump({"data": dcfg, "train": tcfg, "seed": args.seed}, open(run_dir / "config.yaml", "w"))
@@ -89,6 +91,15 @@ def main():
     df = pd.read_csv(d["splits"].format(seed=args.seed), dtype={"identity": str, "path": str})
     df["row"] = df["path"].map(row_of)
     assert df["row"].notna().all(), "splits reference images missing from the manifest cache"
+    if args.meta_frac:
+        # Split-backbone protocol (Phase 3): hold out a fraction of the TRAIN identities from
+        # the backbone. Their embeddings are then "unseen people", usable to meta-train the
+        # memory. They get split="meta" and never touch backbone training or evaluation.
+        train_ids = np.array(sorted(df.loc[df["split"] == "train", "identity"].unique()))
+        meta_ids = np.random.default_rng(1000 + args.seed).choice(
+            train_ids, int(round(args.meta_frac * len(train_ids))), replace=False)
+        df.loc[df["identity"].isin(meta_ids), "split"] = "meta"
+        print(f"split-backbone: {len(meta_ids)} of {len(train_ids)} train identities held out as 'meta'")
 
     tr = df[df["split"] == "train"].reset_index(drop=True)
     classes = sorted(tr["identity"].unique())
@@ -154,16 +165,10 @@ def main():
     if not args.val_only:
         torch.save(blob, run_dir / "embeddings.pt")
         torch.save({"model": model.state_dict(), "classes": classes}, run_dir / "model.pt")
-    results = {s: run_protocol(blob, s) for s in tcfg["scorers"]}
-
-    # Evaluation-only split variants (e.g. g5 = 5 gallery images): same embeddings, new roles.
-    for name in (dcfg["splits"].get("variants") or {}):
-        p = Path(d["splits"].format(seed=args.seed))
-        vdf = pd.read_csv(p.with_name(p.name.replace("splits_", f"splits_{name}_", 1)),
-                          dtype={"identity": str, "path": str}).set_index("path").loc[df["path"]]
-        assert (vdf["split"].to_numpy() == blob["split"]).all(), f"variant {name} changes splits"
-        vblob = dict(blob, role=vdf["role"].to_numpy(), known=vdf["known"].to_numpy())
-        results.update({f"{s}@{name}": run_protocol(vblob, s) for s in tcfg["scorers"]})
+    # Base split plus evaluation-only variants (e.g. g5 = 5 gallery images): same embeddings.
+    results = {}
+    for name, vblob in variant_blobs(blob, dcfg, args.seed).items():
+        results.update({s + (f"@{name}" if name else ""): run_protocol(vblob, s) for s in tcfg["scorers"]})
 
     split = "val" if args.val_only else "test"
     if args.val_only:

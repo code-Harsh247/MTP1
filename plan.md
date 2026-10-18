@@ -1,5 +1,7 @@
 # Plan: Nested Learning for Open-Set Ear Recognition
 
+> **Status 2026-10-19:** Phases 0–3 are done. The surprise-rejection claim came out **no-go** in the Phase 3 kill test. Proposed next direction: **[plan_continual.md](plan_continual.md)** (continual ear recognition with CMS), pending supervisor sign-off. This file remains the record of Phases 0–3.
+
 *Created 2026-10-18. Replaces the earlier MAML plan.*
 
 ## 1. Goal
@@ -90,7 +92,7 @@ UERC notes:
 | **0. Setup** ✅ | Python env and repo layout. AMI, EarVN1.0, AWE and IITD copied to `data/`, layouts verified, exact duplicates removed, 5 open-set splits each. Findings are in [notes/phase0_data.md](notes/phase0_data.md#phase-0-results-2026-10-18). | Laptop | Splits and the data loader run on all four sets |
 | **1. Read and pin down NL** ✅ | Read the Nested Learning and Titans papers. Write down the exact memory update, surprise, momentum and forget-gate equations. Check whether official code exists (none does). | — | [notes/nl_equations.md](notes/nl_equations.md) is written |
 | **2. Baseline** ✅ (incl. EVM) — results in [notes/phase2_baseline.md](notes/phase2_baseline.md) | Pretrained ResNet with ArcFace. Open-set scores: max cosine, a **subspace-residual** classifier (the linear-memory equivalent, see notes §8.3), and EVM or score normalization. Run in order: AMI (sanity) → EarVN1.0 → AWE. | Laptop | Baseline table on S1–S3 (mean ± std over 5 splits) |
-| **3. Kill test** | On EarVN1.0, freeze the baseline backbone and compare four rejection scores on saved embeddings: (1) max cosine, (2) linear-memory surprise, (3) deep-memory surprise without meta-training, (4) deep-memory surprise with episodic meta-training. Confirm on AWE. | Laptop | Go or no-go decision (see §6) |
+| **3. Kill test** ✅ **NO-GO on EarVN** (no memory arm beats cosine; meta-training never improved; see [notes/phase3_killtest.md](notes/phase3_killtest.md)). Decision pending: UERC retest vs fallback (§6) | On EarVN1.0, freeze the baseline backbone and compare four rejection scores on saved embeddings: (1) max cosine, (2) linear-memory surprise, (3) deep-memory surprise without meta-training, (4) deep-memory surprise with episodic meta-training. Confirm on AWE. | Laptop | Go or no-go decision (see §6) |
 | **4. Full NL-Ear** | Meta-train the memory parameters, try Variant B, and run ablations: memory depth, number of write steps, momentum on/off, forget gate on/off. Develop on EarVN1.0, then **scale to UERC** (S4) for the main results. | Laptop → DGX | Main results table on UERC |
 | **5. Extras (if time)** | (a) Fast test-time memory for pose and occlusion. (b) Continual enrollment: add identities in batches and measure forgetting. (c) Cross-dataset tests (see §4). | DGX | Extra tables |
 | **6. Write-up** | Thesis chapters, figures, and score-distribution plots | — | Draft to the supervisor |
