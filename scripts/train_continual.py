@@ -29,6 +29,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.cl_methods import EWC, LwF, Replay  # noqa: E402
+from nlear.cms import CMSScheduler  # noqa: E402
 from nlear.continual import continual_summary, make_task_splits, seen_task_metrics  # noqa: E402
 from nlear.data.cache import GPUAugment, load_image_cache  # noqa: E402
 from nlear.data.manifest import load_manifest  # noqa: E402
@@ -51,10 +52,15 @@ def make_method(args):
 
 def default_name(args):
     if args.method in ("ewc", "lwf"):
-        return f"{args.method}_lam{args.lam:g}"
-    if args.method == "replay":
-        return f"replay_k{args.buffer_per_id}"
-    return args.method
+        name = f"{args.method}_lam{args.lam:g}"
+    elif args.method == "replay":
+        name = f"replay_k{args.buffer_per_id}"
+    else:
+        name = args.method
+    if args.cms_periods:
+        name += (f"_cms{args.cms_periods.replace(',', '-')}_b{args.cms_body_period}"
+                 f"_p{args.cms_lr_pow:g}")
+    return name
 
 
 def make_optimizer(model, head, t):
@@ -89,6 +95,12 @@ def main():
     ap.add_argument("--lam", type=float, default=1.0, help="EWC / LwF strength")
     ap.add_argument("--ewc-gamma", type=float, default=1.0, help="online EWC Fisher decay")
     ap.add_argument("--buffer-per-id", type=int, default=5, help="replay images per learned identity")
+    ap.add_argument("--cms-periods", default="",
+                    help="CMS neck: update period per block, e.g. 1,16,256 (empty = plain neck)")
+    ap.add_argument("--cms-body-period", type=int, default=1, help="CMS: backbone update period")
+    ap.add_argument("--cms-proj-period", type=int, default=1, help="CMS: neck projection/BN period")
+    ap.add_argument("--cms-lr-pow", type=float, default=0.0, help="CMS: slow lr = lr * period**pow")
+    ap.add_argument("--cms-mult", type=int, default=2, help="CMS block hidden width multiplier")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", default="runs")
     args = ap.parse_args()
@@ -122,8 +134,18 @@ def main():
           f"({[len(r) for r in rows_of_task]} train imgs); held-out "
           f"{int(df['cl_role'].str.startswith('held').sum())} imgs")
 
-    model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0)).to(device)
+    periods = [int(x) for x in args.cms_periods.split(",")] if args.cms_periods else []
+    model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0),
+                         neck="cms" if periods else "linear", cms_levels=len(periods) or 3,
+                         cms_mult=args.cms_mult).to(device)
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
+    cms = None
+    if periods:
+        t["amp"] = False  # gradient accumulation across steps needs fp32 (nlear/cms.py)
+        cms = CMSScheduler(model, head, t, periods, args.cms_body_period, args.cms_proj_period,
+                           args.cms_lr_pow)
+        print(f"CMS neck: block periods {periods}, body {args.cms_body_period}, proj "
+              f"{args.cms_proj_period}, lr_pow {args.cms_lr_pow}; fp32")
     scaler = torch.amp.GradScaler(enabled=t["amp"] and device.type == "cuda")
     augment = GPUAugment(**t.get("aug", {}))
 
@@ -148,10 +170,11 @@ def main():
 
         if isinstance(method, Replay):
             batch_fn = method.batch_fn(rows, labels, t["batch_size"], gen)
-        opt = make_optimizer(model, head, t)
+        opt = cms.fast_optimizer() if cms else make_optimizer(model, head, t)
         stats = train_steps(model, head, opt, images, batch_fn, steps, device, augment, scaler,
                             warm=max(1, steps // 10), active=active,
-                            extra_loss=getattr(method, "extra_loss", None))
+                            extra_loss=getattr(method, "extra_loss", None),
+                            step_hook=cms.hook if cms else None)
         if method is not None:
             method.end_task(model, head, images, rows, labels, device, active, t["batch_size"], gen)
         A_row, U_s = evaluate_stage(model, images, df, device, args.n_tasks)
@@ -170,6 +193,8 @@ def main():
         summary[f"matrix_{key}"] = M
     summary["final_U_test"] = U[-1]["test"]
     summary["final_U_val"] = U[-1]["val"]
+    if cms:
+        summary["cms_updates_per_period"] = {str(k): v for k, v in cms.n_updates.items()}
     json.dump({"log": log, "summary": summary, "A": A, "U": U}, open(run_dir / "metrics.json", "w"), indent=1)
     torch.save({"model": model.state_dict()}, run_dir / "model.pt")
     print("SUMMARY " + " ".join(f"{k}={v:.4f}" for k, v in summary.items() if isinstance(v, float)))

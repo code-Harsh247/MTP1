@@ -3,7 +3,8 @@
 # have SUBMITTED (QOSMaxSubmitJobPerUserLimit; every array element counts, and the dsamantaai
 # account is shared), so each array element runs several task lines in sequence:
 # element i runs lines i, i+N, i+2N, ... of $TASKS, where N = number of array elements.
-# Line format: <method> <lam> <buffer_per_id> <seed>        e.g.  "ewc 1e4 0 3"
+# Line format: <method> <lam> <buffer_per_id> <seed> [extra train_continual.py args]
+#   e.g.  "ewc 1e4 0 3"   or   "naive 0 0 1 --cms-periods 1,16,256 --cms-lr-pow 0.5"
 #   sbatch --array=0-7 --export=ALL,TASKS=$PWD/tasks_c2.txt scripts/dgx/cl_array.sbatch
 #SBATCH --job-name=harsh_cl
 #SBATCH --partition=dgx_all
@@ -28,11 +29,11 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 for (( i = SLURM_ARRAY_TASK_ID; i < NLINES; i += N )); do
   LINE=$(sed -n "$((i + 1))p" "$TASKS" | tr -d '\r')
-  read -r METHOD LAM K SEED <<< "$LINE"
-  echo "task $i: method=$METHOD lam=$LAM k=$K seed=$SEED  ($(date +%H:%M:%S))"
+  read -r METHOD LAM K SEED EXTRA <<< "$LINE"
+  echo "task $i: method=$METHOD lam=$LAM k=$K seed=$SEED extra=[$EXTRA]  ($(date +%H:%M:%S))"
   # One failed run must not stop the remaining runs of this element.
   "$PY" scripts/train_continual.py --data configs/earvn_dgx.yaml --method "$METHOD" \
-      --lam "$LAM" --buffer-per-id "$K" --seed "$SEED" --out runs_dgx \
+      --lam "$LAM" --buffer-per-id "$K" --seed "$SEED" --out runs_dgx ${EXTRA:+$EXTRA} \
     || echo "task $i FAILED (exit $?)"
 done
 echo "array element $SLURM_ARRAY_TASK_ID done ($(date +%H:%M:%S))"
