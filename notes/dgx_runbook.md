@@ -74,13 +74,14 @@ grep -h -E "^task [0-9]+:|^SUMMARY" logs/harsh_cl_*.out
 
 ## C. Submit the C2 runs (on the DGX)
 
-The λ values (both per method) were fixed from the seed-0 tuning on the laptop (`runs/earvn/c2_tune.log`); the task list has 40 lines.
+The λ values (both per method) were fixed from the seed-0 tuning on the laptop (`runs/earvn/c2_tune.log`); the task list has 40 lines. The gpu2 QOS limits how many jobs a user may have *submitted* (every array element counts, and the account is shared), so the 40 lines run as **8 array elements of 5 runs each** (element i runs lines i, i+8, …; with 8 elements that is one method across all seeds). If fewer submit slots are free, use fewer elements, e.g. `--array=0-3`; each then runs 10 lines.
 
 ```bash
 cd /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear
 mkdir -p logs
 bash scripts/dgx/make_c2_tasks.sh > tasks_c2.txt
-sbatch --array=0-39%8 --export=ALL,TASKS=$PWD/tasks_c2.txt scripts/dgx/cl_array.sbatch
+squeue -u dsamantaai          # count the jobs already queued on the shared account
+sbatch --array=0-7 --export=ALL,TASKS=$PWD/tasks_c2.txt scripts/dgx/cl_array.sbatch
 ```
 
 Watch only our jobs:
