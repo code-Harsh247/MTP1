@@ -14,13 +14,14 @@
 
 set -euo pipefail
 cd /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate harsh_nlear
+# Call the env's python by full path: `conda activate` does not reliably take effect in
+# non-interactive shells on this cluster (pip resolved to the system python, 2026-10-20).
+PY=/home/dsamantaai/miniconda3/envs/harsh_nlear/bin/python
 
 LINE=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$TASKS")
 read -r METHOD LAM K SEED <<< "$LINE"
 echo "task $SLURM_ARRAY_TASK_ID: method=$METHOD lam=$LAM k=$K seed=$SEED on $(hostname)"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
-python scripts/train_continual.py --data configs/earvn_dgx.yaml --method "$METHOD" \
+"$PY" scripts/train_continual.py --data configs/earvn_dgx.yaml --method "$METHOD" \
     --lam "$LAM" --buffer-per-id "$K" --seed "$SEED" --out runs_dgx
