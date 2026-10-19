@@ -10,6 +10,9 @@ and summarize final average, forgetting and backward transfer (nlear/continual.p
 Methods:
     joint   all tasks' data at once (upper bound; one stage)
     naive   plain sequential fine-tuning (lower bound)
+    ewc     online EWC, strength --lam                          (nlear/cl_methods.py)
+    lwf     embedding distillation from the previous model, --lam
+    replay  --buffer-per-id stored training images per learned identity, half of each batch
 
     python scripts/train_continual.py --data configs/earvn.yaml --method naive --seed 0
 """
@@ -25,6 +28,7 @@ import torch
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from nlear.cl_methods import EWC, LwF, Replay  # noqa: E402
 from nlear.continual import continual_summary, make_task_splits, seen_task_metrics  # noqa: E402
 from nlear.data.cache import GPUAugment, load_image_cache  # noqa: E402
 from nlear.data.manifest import load_manifest  # noqa: E402
@@ -32,7 +36,25 @@ from nlear.engine import embed, train_steps  # noqa: E402
 from nlear.eval.protocol import run_protocol  # noqa: E402
 from nlear.models import ArcFace, EmbeddingNet  # noqa: E402
 
-METHODS = ("joint", "naive")
+METHODS = ("joint", "naive", "ewc", "lwf", "replay")
+
+
+def make_method(args):
+    if args.method == "ewc":
+        return EWC(args.lam, gamma=args.ewc_gamma)
+    if args.method == "lwf":
+        return LwF(args.lam)
+    if args.method == "replay":
+        return Replay(args.buffer_per_id, seed=args.seed)
+    return None
+
+
+def default_name(args):
+    if args.method in ("ewc", "lwf"):
+        return f"{args.method}_lam{args.lam:g}"
+    if args.method == "replay":
+        return f"replay_k{args.buffer_per_id}"
+    return args.method
 
 
 def make_optimizer(model, head, t):
@@ -64,6 +86,9 @@ def main():
     ap.add_argument("--n-tasks", type=int, default=5)
     ap.add_argument("--holdout", type=float, default=0.2)
     ap.add_argument("--steps-per-task", type=int, default=250)
+    ap.add_argument("--lam", type=float, default=1.0, help="EWC / LwF strength")
+    ap.add_argument("--ewc-gamma", type=float, default=1.0, help="online EWC Fisher decay")
+    ap.add_argument("--buffer-per-id", type=int, default=5, help="replay images per learned identity")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", default="runs")
     args = ap.parse_args()
@@ -73,7 +98,7 @@ def main():
     gen = torch.Generator().manual_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    run_dir = Path(args.out) / dcfg["name"] / "continual" / (args.method + (f"_{args.tag}" if args.tag else "")) / f"seed{args.seed}"
+    run_dir = Path(args.out) / dcfg["name"] / "continual" / (default_name(args) + (f"_{args.tag}" if args.tag else "")) / f"seed{args.seed}"
     run_dir.mkdir(parents=True, exist_ok=True)
     yaml.safe_dump({"data": dcfg, "train": tcfg, "args": vars(args)}, open(run_dir / "config.yaml", "w"))
 
@@ -106,6 +131,7 @@ def main():
         stages = [list(range(args.n_tasks))]       # one stage with every task's data
     else:
         stages = [[k] for k in range(args.n_tasks)]
+    method = make_method(args)
 
     A, U, log = [], [], []
     for s, tasks in enumerate(stages):
@@ -120,9 +146,14 @@ def main():
             b = torch.randint(len(rows), (t["batch_size"],), generator=gen)
             return rows[b], labels[b]
 
+        if isinstance(method, Replay):
+            batch_fn = method.batch_fn(rows, labels, t["batch_size"], gen)
         opt = make_optimizer(model, head, t)
         stats = train_steps(model, head, opt, images, batch_fn, steps, device, augment, scaler,
-                            warm=max(1, steps // 10), active=active)
+                            warm=max(1, steps // 10), active=active,
+                            extra_loss=getattr(method, "extra_loss", None))
+        if method is not None:
+            method.end_task(model, head, images, rows, labels, device, active, t["batch_size"], gen)
         A_row, U_s = evaluate_stage(model, images, df, device, args.n_tasks)
         A.append(A_row)
         U.append(U_s)

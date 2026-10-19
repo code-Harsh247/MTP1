@@ -1,0 +1,20 @@
+# EarVN1.0 on the DGX. Same people, splits and manifest as configs/earvn.yaml (the split and
+# manifest CSVs are copied from the laptop, never regenerated), only the image root differs.
+name: earvn
+data:
+  root: "/dgx1/dsamantaai/santhosh/Ear_Datasets/EarVN1.0 dataset/Images"
+  identity_regex: null
+  manifest: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/earvn/manifest.csv
+  splits: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/earvn/splits_seed{seed}.csv
+  img_size: [128, 96]
+
+splits:
+  seeds: [0, 1, 2, 3, 4, 5]
+  min_images: 4
+  frac_train: 0.70
+  frac_val: 0.10
+  known_frac: 0.5
+  n_gallery: 2
+  stratify_by: source
+  variants:
+    g5: {n_gallery: 5, min_images: 6}

@@ -10,3 +10,6 @@ __pycache__/
 *.pt
 *.pth
 *.npy
+/runs_dgx/
+/logs/
+nlear_code.tar.gz
