@@ -9,7 +9,7 @@ data:
   img_size: [128, 96]
 
 splits:
-  seeds: [0, 1, 2, 3, 4, 5]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
   min_images: 4
   frac_train: 0.70
   frac_val: 0.10
