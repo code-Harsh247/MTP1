@@ -55,15 +55,32 @@ Build the image cache, download the pretrained weights and check the splits. Thi
 python scripts/dgx/prepare.py --data configs/earvn_dgx.yaml
 ```
 
-## C. Submit the C2 runs (on the DGX)
+## C0. (Not needed: tuning finished on the laptop, 2026-10-20) λ tuning on seed 0
 
-The λ values come from the seed-0 tuning on the laptop (`runs/earvn/c2_tune.log`).
+This is the same 6-run sweep as the laptop's (`runs/earvn/c2_tune.log`), run in parallel in about 5 minutes. Use it if the laptop sweep is still running when the DGX is ready.
 
 ```bash
 cd /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear
 mkdir -p logs
-bash scripts/dgx/make_c2_tasks.sh <EWC_LAMBDA> <LWF_LAMBDA> > tasks_c2.txt
-sbatch --array=0-29%8 --export=ALL,TASKS=$PWD/tasks_c2.txt scripts/dgx/cl_array.sbatch
+printf '%s\n' "ewc 1e2 0 0" "ewc 1e4 0 0" "ewc 1e6 0 0" "lwf 1 0 0" "lwf 10 0 0" "lwf 100 0 0" > tasks_tune.txt
+sbatch --array=0-5 --export=ALL,TASKS=$PWD/tasks_tune.txt scripts/dgx/cl_array.sbatch
+```
+
+When all 6 jobs are done, print their summaries and paste them to Claude:
+
+```bash
+grep -h -E "^task [0-9]+:|^SUMMARY" logs/harsh_cl_*.out
+```
+
+## C. Submit the C2 runs (on the DGX)
+
+The λ values (both per method) were fixed from the seed-0 tuning on the laptop (`runs/earvn/c2_tune.log`); the task list has 40 lines.
+
+```bash
+cd /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear
+mkdir -p logs
+bash scripts/dgx/make_c2_tasks.sh > tasks_c2.txt
+sbatch --array=0-39%8 --export=ALL,TASKS=$PWD/tasks_c2.txt scripts/dgx/cl_array.sbatch
 ```
 
 Watch only our jobs:
