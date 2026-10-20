@@ -60,6 +60,8 @@ def default_name(args):
     if args.cms_periods:
         name += (f"_cms{args.cms_periods.replace(',', '-')}_b{args.cms_body_period}"
                  f"_p{args.cms_lr_pow:g}")
+    elif args.fp32:
+        name += "_fp32"   # CMS runs are always fp32; mark it only where it differs from the default
     return name
 
 
@@ -101,6 +103,8 @@ def main():
     ap.add_argument("--cms-proj-period", type=int, default=1, help="CMS: neck projection/BN period")
     ap.add_argument("--cms-lr-pow", type=float, default=0.0, help="CMS: slow lr = lr * period**pow")
     ap.add_argument("--cms-mult", type=int, default=2, help="CMS block hidden width multiplier")
+    ap.add_argument("--fp32", action="store_true",
+                    help="train in fp32 (no AMP), so non-CMS arms match the CMS arms' precision (C3b)")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", default="runs")
     args = ap.parse_args()
@@ -146,6 +150,8 @@ def main():
                            args.cms_lr_pow)
         print(f"CMS neck: block periods {periods}, body {args.cms_body_period}, proj "
               f"{args.cms_proj_period}, lr_pow {args.cms_lr_pow}; fp32")
+    if args.fp32:
+        t["amp"] = False
     scaler = torch.amp.GradScaler(enabled=t["amp"] and device.type == "cuda")
     augment = GPUAugment(**t.get("aug", {}))
 
