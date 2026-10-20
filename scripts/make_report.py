@@ -96,8 +96,8 @@ def build():
          "Large forgetting found"],
         ["Standard fixes", "EWC, LwF, replay of a few stored photos", "Replay best, small gain"],
         ["NL idea 2", "CMS: network parts that learn at different speeds",
-         verdict("CMS blocks: no gain", False) + "; slow backbone: " + verdict("+0.04 rank-1", True)],
-        ["Now running", "Slow-backbone effect retested on UERC (pre-registered)", verdict("In queue", None)],
+         verdict("CMS blocks: no gain", False) + "; slow backbone: +0.04 rank-1 on EarVN, "
+         + verdict("but not on UERC", False)],
     ], [26, 98, 50], bold_first_col=True))
 
     s.append(p("3. Baseline results", H))
@@ -126,17 +126,20 @@ def build():
         ["C3b", "EarVN (fresh seeds)", "Do C3's promising side results replicate?",
          verdict("Mostly no", False) + ": unseen-people gain was a fluke; CMS blocks add nothing. "
          + verdict("Slow backbone: +0.04 rank-1, 5 of 5 seeds", True)],
-        ["U3", "UERC", "Does the slow-backbone effect hold at large scale?", verdict("Running", None)],
+        ["U3", "UERC", "Does the slow-backbone effect hold at large scale?",
+         verdict("No", False) + ": it reverses (rank-1 -0.015 vs an identical control, 0 of 3 seeds)"],
     ], [16, 24, 64, 70])]))
 
-    s.append(KeepTogether([p("5. Continual learning numbers (EarVN, seeds 1-5)", H), table([
-        ["Method", "Seen-people DIR@5% (after all groups)", "Forgetting"],
-        ["Train on everyone at once (upper bound)", "0.501", "-"],
-        ["Train group by group, no protection", "0.183", "0.180"],
-        ["Replay (keep 5 photos per person)", "0.221", "0.071"],
-    ], [78, 60, 36]), p("On UERC (10 groups) the gap is even larger: about 0.76 for training on everyone vs 0.28 group by "
-                        "group (first finished runs). The slow-backbone effect: <b>+0.038 rank-1</b> over an identical "
-                        "control on 5 of 5 fresh seeds (C3b), and +0.041 in C3.", NOTE)]))
+    s.append(KeepTogether([p("5. Continual learning numbers (seen-people rank-1 after all groups)", H), table([
+        ["Method", "EarVN (5 groups, 5 seeds)", "UERC (10 groups, 3 seeds)"],
+        ["Train on everyone at once (upper bound)", "0.809", "0.899"],
+        ["Train group by group, no protection", "0.536", "0.595"],
+        ["Replay (keep 5 photos per person)", "0.570", "0.720"],
+        ["Replay + same-architecture control", "0.580", "0.728"],
+        ["Replay + slow backbone (NL)", "0.618 (better)", "0.713 (worse)"],
+    ], [78, 48, 48]), p("EarVN replay rows are from the fresh-seed confirmation (C3b: seeds 6-10), joint and naive from "
+                        "seeds 1-5 (C2). All UERC arms in fp32. The slow-backbone gain on EarVN "
+                        "(+0.038 vs control, 5 of 5 seeds) did not carry over to UERC (-0.015, 0 of 3 seeds).", NOTE)]))
 
     s.append(p("6. Main takeaways", H))
     s += bullets([
@@ -144,17 +147,19 @@ def build():
         "0.24 to 0.37; no NL method changed it by more than 0.01.",
         "<b>NL memories do not beat simple cosine matching</b> for rejecting strangers, on small or large data, "
         "untrained or meta-learned. This is a clear, well-tested negative result.",
-        "<b>One NL principle helps a little:</b> letting the backbone learn more slowly than the top layers improves "
-        "recognition of already-enrolled people by about 4 percentage points of rank-1 in continual learning. "
-        "It does not help with strangers or with new people.",
+        "<b>NL's multi-speed idea did not generalize:</b> a slowly-updating backbone helped retain enrolled people "
+        "on the small EarVN set (+0.04 rank-1), but hurt slightly at UERC scale (-0.015). No NL mechanism tested "
+        "gives a robust improvement over standard methods.",
+        "<b>Replay works well at scale</b> (UERC rank-1 0.72 vs 0.60 without it), but training on everyone at once "
+        "(0.90) is still far ahead.",
         "<b>Method:</b> fixed rules before results, fresh seeds for confirmation; this caught one false positive.",
     ])
 
     s.append(p("7. Next steps", H))
     s += bullets([
-        "Read out U3 (slow backbone at UERC scale) when the cluster runs it.",
-        "Optional: test NL's M3 optimizer against AdamW for the standard recognizer.",
-        "Start the thesis write-up: baselines, two NL negative results, and the slow-backbone finding.",
+        "Optional last NL test: NL's M3 optimizer against AdamW for the standard recognizer.",
+        "Thesis write-up: strong UERC baselines, and a rigorous, pre-registered study of where Nested Learning "
+        "does and does not help open-set and continual ear recognition.",
     ])
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
