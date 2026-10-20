@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import pandas as pd
 import pytest
 from PIL import Image
@@ -83,3 +84,24 @@ def test_dataset_loads_images(fake_root):
     assert img.shape == (3, 64, 64)
     assert 0 <= label < ds.num_classes
     assert int(known) == -1
+
+
+def test_source_from_extension_uses_majority_per_identity(tmp_path):
+    rng = np.random.default_rng(0)
+    for ident, exts in (("a", ["jpg"] * 3 + ["png"]), ("b", ["png"] * 3)):
+        d = tmp_path / ident
+        d.mkdir()
+        for j, ext in enumerate(exts):
+            Image.fromarray(rng.integers(0, 255, (8, 8, 3), dtype=np.uint8)).save(d / f"{j}.{ext}")
+    m = build_manifest(tmp_path, source_from="extension")
+    assert m.groupby("identity")["source"].unique().map(list).to_dict() == {"a": ["jpg"], "b": ["png"]}
+
+
+def test_parallel_cache_build_matches_serial_and_reloads_mmapped(tmp_path, fake_root):
+    from nlear.data.cache import load_image_cache
+    m = build_manifest(fake_root)
+    serial, idx_s = load_image_cache(m, fake_root, (16, 12), tmp_path / "s.pt", workers=0)
+    parallel, idx_p = load_image_cache(m, fake_root, (16, 12), tmp_path / "p.pt", workers=2)
+    assert idx_s == idx_p and torch.equal(serial, parallel)
+    again, _ = load_image_cache(m, fake_root, (16, 12), tmp_path / "p.pt")
+    assert torch.equal(again, parallel)

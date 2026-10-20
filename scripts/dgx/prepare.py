@@ -20,12 +20,14 @@ from nlear.data.manifest import load_manifest  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--data", required=True)
+ap.add_argument("--workers", type=int, default=0, help="parallel decoding processes for the cache build")
 args = ap.parse_args()
 cfg = yaml.safe_load(open(args.data))
 d = cfg["data"]
 manifest = load_manifest(d["manifest"])
 h, w = d["img_size"]
-images, row_of = load_image_cache(manifest, d["root"], d["img_size"], Path(d["manifest"]).parent / f"cache_{h}x{w}.pt")
+images, row_of = load_image_cache(manifest, d["root"], d["img_size"],
+                                  Path(d["manifest"]).parent / f"cache_{h}x{w}.pt", workers=args.workers)
 print(f"cache ok: {tuple(images.shape)}")
 for seed in cfg["splits"]["seeds"]:
     df = pd.read_csv(d["splits"].format(seed=seed), dtype={"path": str})

@@ -1,17 +1,22 @@
-# S4: UERC 2023 public set. Final scale, runs on the DGX.
+# U-phases: UERC 2023 public set (plan_uerc.md). Runs on the DGX only; images never leave it.
+# Inspected 2026-10-20 (data/uerc_report.txt): 1,310 ids, 248,655 images (234,651 jpg + 14,004 png),
+# >= 10 images per id (median 150), tiny images (median 31x62 px), RAM cache at 128x96 = 9.2 GB.
 name: uerc
 data:
   root: "/dgx1/dsamantaai/santhosh/Ear_Datasets/UERC 2023 Competition Package with sequestered anonymized data/data/public"
-  identity_regex: null                 # public/<cid>/...
+  identity_regex: null                 # public/<cid>/<n>.jpg|png
+  source_from: extension               # the 3 sources are unlabelled; majority file type per id is the proxy
   manifest: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/uerc/manifest.csv
   splits: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/uerc/splits_seed{seed}.csv
-  img_size: [128, 96]                 # [h, w]; ears are ~1.4x taller than wide
+  img_size: [128, 96]                  # [h, w]; same as EarVN for a comparable recipe (upsamples ~3-4x here)
 
 splits:
-  seeds: [0]                           # large set: one split, 3 training seeds instead
-  min_images: 4
+  seeds: [0, 1, 2, 3]                  # 0 = tuning (val only); 1-3 = reported test runs
+  min_images: 4                        # nobody is dropped (min is 10)
   frac_train: 0.70
   frac_val: 0.10
   known_frac: 0.5
   n_gallery: 2
-  stratify_by: source                  # TODO: fill the source column (3 source datasets)
+  stratify_by: source
+  variants:
+    g5: {n_gallery: 5, min_images: 6}

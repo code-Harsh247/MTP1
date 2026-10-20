@@ -8,13 +8,17 @@ import pandas as pd
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 
 
-def build_manifest(root, source="unknown", identity_regex=None, dedup=True):
+def build_manifest(root, source="unknown", identity_regex=None, dedup=True, source_from=None):
     """Scan every image under root and return a manifest DataFrame.
 
     identity_regex=None: identity is the first folder under root (root/<identity>/**/<img>).
     identity_regex given: it is searched in the path relative to root, and group 1 is the
     identity. Used for datasets that keep all images in one folder with the subject id in
     the file name (e.g. r"^(\\d+)_" for "012_front_ear.jpg").
+
+    source_from="extension": each identity's source is the majority file extension of its
+    images (UERC: the 3 source datasets are not labelled, but JPG vs PNG tracks them; used
+    only to stratify splits). Otherwise every row gets the fixed `source`.
     """
     root = Path(root)
     pattern = re.compile(identity_regex) if identity_regex else None
@@ -40,6 +44,12 @@ def build_manifest(root, source="unknown", identity_regex=None, dedup=True):
     if not rows:
         raise FileNotFoundError(f"no images with an identity found under {root}")
     df = pd.DataFrame(rows)
+    if source_from == "extension":
+        ext = df["path"].str.rsplit(".", n=1).str[-1].str.lower()
+        majority = ext.groupby(df["identity"]).agg(lambda e: e.value_counts().idxmax())
+        df["source"] = df["identity"].map(majority)
+    elif source_from is not None:
+        raise ValueError(f"unknown source_from {source_from!r}")
     if dedup:
         df = drop_exact_duplicates(df, root)
     return df

@@ -3,7 +3,10 @@
 DataLoader worker processes were very slow on the Windows laptop (see notes/phase0_data.md),
 and the small datasets fit in RAM easily (EarVN at 128x96 is ~0.7 GB), so we skip them.
 """
+import functools
 import math
+import multiprocessing
+import os
 from pathlib import Path
 
 import numpy as np
@@ -15,22 +18,38 @@ from tqdm import tqdm
 from .dataset import IMAGENET_MEAN, IMAGENET_STD
 
 
-def load_image_cache(manifest, root, img_size, cache_path):
-    """Return (images uint8 [N,3,H,W], path -> row index). Built once and saved to cache_path."""
+def _decode(path, root, h, w):
+    """One image -> uint8 HxWx3 array (top-level so worker processes can pickle it)."""
+    with Image.open(Path(root) / path) as im:
+        return np.asarray(im.convert("RGB").resize((w, h), Image.BILINEAR)).copy()
+
+
+def load_image_cache(manifest, root, img_size, cache_path, workers=0):
+    """Return (images uint8 [N,3,H,W], path -> row index). Built once and saved to cache_path.
+
+    The saved cache is loaded memory-mapped, so a large cache (UERC: 9.2 GB) is not copied
+    into every job's RAM and jobs on one node share the OS page cache. workers > 0 decodes
+    in parallel processes when building (UERC: ~250k images).
+    """
     cache_path = Path(cache_path)
     paths = manifest["path"].tolist()
     if cache_path.exists():
-        blob = torch.load(cache_path)
+        blob = torch.load(cache_path, mmap=True)
         if blob["paths"] == paths and tuple(blob["img_size"]) == tuple(img_size):
             return blob["images"], {p: i for i, p in enumerate(paths)}
         print(f"cache {cache_path} is stale (manifest or size changed); rebuilding")
     h, w = img_size
     images = torch.empty((len(paths), 3, h, w), dtype=torch.uint8)
-    root = Path(root)
-    for i, p in enumerate(tqdm(paths, desc=f"decoding {cache_path.parent.name}", mininterval=2)):
-        with Image.open(root / p) as im:
-            im = im.convert("RGB").resize((w, h), Image.BILINEAR)
-            images[i] = torch.from_numpy(np.asarray(im).copy()).permute(2, 0, 1)
+    decode = functools.partial(_decode, root=str(root), h=h, w=w)
+    desc = f"decoding {cache_path.parent.name}"
+    if workers > 0:
+        with multiprocessing.get_context("spawn" if os.name == "nt" else "fork").Pool(workers) as pool:
+            it = pool.imap(decode, paths, chunksize=256)
+            for i, arr in enumerate(tqdm(it, total=len(paths), desc=desc, mininterval=5)):
+                images[i] = torch.from_numpy(arr).permute(2, 0, 1)
+    else:
+        for i, p in enumerate(tqdm(paths, desc=desc, mininterval=2)):
+            images[i] = torch.from_numpy(decode(p)).permute(2, 0, 1)
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"paths": paths, "img_size": list(img_size), "images": images}, cache_path)
     return images, {p: i for i, p in enumerate(paths)}

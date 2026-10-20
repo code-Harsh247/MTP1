@@ -29,7 +29,8 @@ def main():
         manifest = load_manifest(manifest_path)
     else:
         manifest = build_manifest(d["root"], source=d.get("source", cfg["name"]),
-                                  identity_regex=d.get("identity_regex"))
+                                  identity_regex=d.get("identity_regex"),
+                                  source_from=d.get("source_from"))
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest.to_csv(manifest_path, index=False)
     counts = manifest.groupby("identity").size()
