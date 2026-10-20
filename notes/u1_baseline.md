@@ -22,6 +22,23 @@ EarVN's "5 epochs" does not transfer to 8× more data, so only the training leng
 
 **Selection rule:** pick the configuration with the highest **validation DIR@FAR=5% (cosine_proto, 2 gallery images)** at its final epoch, breaking ties (within 0.005) by validation AUROC. This is the same rule as on EarVN. Test splits are never computed into any output during tuning (`--val-only`).
 
+### Tuning result (2026-10-20; DGX array 34942; `runs_dgx/u1_tune_selection.txt`)
+
+| Config (seed 0, VAL) | DIR@5% | AUROC | rank-1 | EER | g5 DIR@5% |
+|---|---|---|---|---|---|
+| **e4** (4 epochs, batch 64) | **0.427** | 0.820 | **0.721** | **0.072** | **0.591** |
+| e2 | 0.413 | **0.822** | 0.700 | 0.076 | 0.562 |
+| e8 | 0.408 | 0.820 | 0.694 | 0.081 | 0.588 |
+| e4, batch 128 | 0.384 | 0.799 | 0.709 | 0.076 | 0.556 |
+| e1 | 0.267 | 0.750 | 0.569 | 0.112 | 0.371 |
+
+**Selected: e4** (margin 0.014 over e2, so no tie-break). No test metric was computed into any tuning output; the script checks this.
+
+**Observations:**
+
+- **Training longer than about 4 epochs does not help.** The 8-epoch run's validation curve dips and recovers (0.38 → 0.32 → 0.41). This is the same "open-set quality peaks early" pattern as on EarVN, but at about 11k steps instead of 1.5k.
+- **On UERC validation, the subspace scorer slightly exceeds cosine_proto** (0.430 vs 0.427), unlike on EarVN, where it was clearly worse. The test runs will show whether this holds.
+
 ## Final runs
 
 - The selected configuration runs on **seeds 1–3** (full test protocol), with embeddings saved.
