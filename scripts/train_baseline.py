@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.data.cache import GPUAugment, load_image_cache, to_input  # noqa: E402
 from nlear.data.manifest import load_manifest  # noqa: E402
 from nlear.eval.protocol import run_protocol, variant_blobs  # noqa: E402
+from nlear.m3 import M3, split_params  # noqa: E402
 from nlear.models import ArcFace, EmbeddingNet  # noqa: E402
 
 
@@ -61,6 +62,7 @@ def main():
     ap.add_argument("--tag", default="", help="suffix for the run folder")
     ap.add_argument("--meta-frac", type=float, default=0.0,
                     help="hold out this fraction of train identities from the backbone (split='meta')")
+    ap.add_argument("--no-save", action="store_true", help="metrics only: skip embeddings.pt and model.pt")
     ap.add_argument("--val-only", action="store_true",
                     help="tuning mode: compute and save validation metrics only, never test")
     args = ap.parse_args()
@@ -112,11 +114,26 @@ def main():
 
     model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0)).to(device)
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
-    opt = torch.optim.AdamW([
-        {"params": model.body.parameters(), "lr": t["lr_body"]},
-        {"params": list(model.neck.parameters()) + list(head.parameters()), "lr": t["lr_head"]},
-    ], weight_decay=t["weight_decay"])
-    base_lrs = [g["lr"] for g in opt.param_groups]
+    if t.get("optimizer", "adamw") == "m3":
+        # U4: NL's M3 optimizer (nlear/m3.py) for the weight matrices (body convs, neck projection);
+        # AdamW keeps BN params, biases and the ArcFace head (Muon convention).
+        m = t.get("m3", {})
+        body_mats, body_rest = split_params(model.body)
+        neck_mats, neck_rest = split_params(model.neck)
+        opts = [M3(body_mats + neck_mats, lr=float(m.get("lr", 1e-4)), alpha=float(m.get("alpha", 1.0)),
+                   freq=int(m.get("freq", 16)), betas=tuple(m.get("betas", (0.95, 0.999, 0.99))),
+                   weight_decay=t["weight_decay"]),
+                torch.optim.AdamW([{"params": body_rest, "lr": t["lr_body"]},
+                                   {"params": neck_rest + list(head.parameters()), "lr": t["lr_head"]}],
+                                  weight_decay=t["weight_decay"])]
+        print(f"optimizer: M3 {m} on {sum(p.numel() for p in body_mats + neck_mats)/1e6:.1f}M matrix params; "
+              f"AdamW on the rest")
+    else:
+        opts = [torch.optim.AdamW([
+            {"params": model.body.parameters(), "lr": t["lr_body"]},
+            {"params": list(model.neck.parameters()) + list(head.parameters()), "lr": t["lr_head"]},
+        ], weight_decay=t["weight_decay"])]
+    base_lrs = [[g["lr"] for g in o.param_groups] for o in opts]
     steps_per_epoch = math.ceil(len(tr) / t["batch_size"])
     if t.get("steps"):
         # Length in optimizer steps: "5 epochs" is 1,550 steps on EarVN but only 40 on AMI.
@@ -137,15 +154,18 @@ def main():
             if len(b) < 2:
                 continue  # BatchNorm needs >1 sample
             f = step / max(1, warm) if step < warm else 0.5 * (1 + math.cos(math.pi * (step - warm) / max(1, total - warm)))
-            for g, lr in zip(opt.param_groups, base_lrs):
-                g["lr"] = lr * f
+            for o, lrs in zip(opts, base_lrs):
+                for g, lr in zip(o.param_groups, lrs):
+                    g["lr"] = lr * f
             x = to_input(images[tr_rows[b]], device, augment)
             y = tr_lab[b].to(device)
             with torch.autocast("cuda", dtype=torch.float16, enabled=scaler.is_enabled()):
                 loss, cos = head(model(x), y)
-            opt.zero_grad(set_to_none=True)
+            for o in opts:
+                o.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
-            scaler.step(opt)
+            for o in opts:
+                scaler.step(o)
             scaler.update()
             loss_sum += loss.item() * len(b)
             acc_sum += (cos.argmax(1) == y).float().sum().item()
@@ -162,7 +182,7 @@ def main():
     # Final: embed every image (train embeddings feed the Phase 3 memory), evaluate all scorers.
     all_rows = torch.tensor(df["row"].to_numpy())
     blob = make_blob(df, embed(model, images, all_rows, device))
-    if not args.val_only:
+    if not args.val_only and not args.no_save:
         torch.save(blob, run_dir / "embeddings.pt")
         torch.save({"model": model.state_dict(), "classes": classes}, run_dir / "model.pt")
     # Base split plus evaluation-only variants (e.g. g5 = 5 gallery images): same embeddings.
