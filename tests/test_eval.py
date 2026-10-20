@@ -147,3 +147,26 @@ def test_gpu_augment_keeps_shape_and_range():
     x = torch.rand(4, 3, 32, 24)
     y = GPUAugment()(x)
     assert y.shape == x.shape and y.min() >= 0 and y.max() <= 1
+
+
+def test_source_blobs_split_gallery_and_probes_by_source(tmp_path):
+    import pandas as pd
+    from nlear.eval.protocol import source_blobs
+    emb, ids = _clusters(n_ids=8, per_id=5)
+    n = len(ids)
+    paths = np.array([f"{i}/{j}.jpg" for i, j in zip(ids, range(n))])
+    split = np.array(["val" if int(i[2:]) % 2 == 0 else "test" for i in ids])
+    known = np.array([1 if int(i[2:]) < 4 else 0 for i in ids])
+    role = np.array(["gallery" if (k == 1 and j % 5 < 2) else "probe" for j, k in enumerate(known)])
+    source = np.array(["jpg" if int(i[2:]) in (0, 1, 4, 5) else "png" for i in ids])
+    pd.DataFrame({"path": paths, "identity": ids, "split": split, "role": role, "known": known,
+                  "source": source}).to_csv(tmp_path / "splits_seed0.csv", index=False)
+    blob = {"emb": emb, "identity": np.array(ids), "split": split, "role": role, "known": known, "path": paths}
+    cfg = {"data": {"splits": str(tmp_path / "splits_seed{seed}.csv")}, "splits": {}}
+    parts = source_blobs(blob, cfg, 0)
+    assert set(parts) == {"jpg", "png"}
+    for s, b in parts.items():
+        assert len(b["emb"]) == (source == s).sum() == len(b["path"])
+        assert set(np.unique(b["identity"])) == set(np.array(ids)[source == s])
+        r = run_protocol(b, "cosine_proto", fars=(0.1,))
+        assert r["test"]["rank1"] == 1.0

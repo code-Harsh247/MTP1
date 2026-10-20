@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.eval.evm import make_evm  # noqa: E402
 from nlear.memory import AssocMemory, make_memory_scorer  # noqa: E402
 from nlear.eval.openset import SCORERS  # noqa: E402
-from nlear.eval.protocol import run_protocol, variant_blobs  # noqa: E402
+from nlear.eval.protocol import run_protocol, source_blobs, variant_blobs  # noqa: E402
 
 KEYS = ["rank1", "auroc", "dir@far0.01", "dir@far0.05", "dir@far0.1", "eer"]
 
@@ -45,6 +45,8 @@ def main():
     ap.add_argument("method_dir")
     ap.add_argument("--scorer", nargs="+", required=True)
     ap.add_argument("--val-only", action="store_true")
+    ap.add_argument("--by-source", action="store_true",
+                    help="also score each source separately (keys scorer#<source>[@variant])")
     args = ap.parse_args()
 
     d = Path(args.method_dir)  # a method dir (seed*/ inside) or a single seed dir
@@ -56,9 +58,14 @@ def main():
         cfg = yaml.safe_load(open(run_dir / "config.yaml"))
         blob = torch.load(emb_path, weights_only=False)
         results = {}
-        for vname, vblob in variant_blobs(blob, cfg["data"], cfg["seed"]).items():
+        groups = {"": blob}
+        if args.by_source:
+            groups.update({f"#{s}": b for s, b in source_blobs(blob, cfg["data"], cfg["seed"]).items()})
+        jobs = [(g + (f"@{v}" if v else ""), vb) for g, gb in groups.items()
+                for v, vb in variant_blobs(gb, cfg["data"], cfg["seed"]).items()]
+        for suffix, vblob in jobs:
             for spec in args.scorer:
-                key = spec + (f"@{vname}" if vname else "")
+                key = spec + suffix
                 try:
                     r = run_protocol(vblob, resolve(spec))
                 except ValueError as e:  # non-finite scores: the memory write diverged

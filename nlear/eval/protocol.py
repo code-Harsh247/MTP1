@@ -37,6 +37,26 @@ def variant_blobs(blob, data_cfg, seed):
     return out
 
 
+def source_blobs(blob, data_cfg, seed):
+    """{source: blob restricted to that source's identities} (gallery, probes and train rows).
+
+    UERC: VGGFace2 (jpg) has 94% of the images, so overall probe-averaged metrics are
+    dominated by it; evaluating each source on its own gallery/probes shows both sides.
+    """
+    from pathlib import Path
+
+    import pandas as pd
+
+    splits = Path(data_cfg["data"]["splits"].format(seed=seed))
+    src = pd.read_csv(splits, dtype={"identity": str, "path": str}).set_index("path").loc[blob["path"], "source"]
+    src = src.to_numpy()
+    out = {}
+    for s in sorted(set(src)):
+        m = src == s
+        out[s] = {k: (v[torch.as_tensor(m)] if torch.is_tensor(v) else v[m]) for k, v in blob.items()}
+    return out
+
+
 def run_protocol(blob, scorer, fars=FARS, device="cpu"):
     """blob: dict with 'emb' [N,d] tensor and numpy arrays 'identity','split','role','known'.
 

@@ -22,9 +22,23 @@ data/             public_annotations.csv (cid, gender, ethnicity), sequestered_a
 | Mean file size | 9.9 KB |
 | RAM cache at 128×96 | **9.2 GB** |
 
+## Composition (from the package README, confirmed by the prepare job 34941)
+
+| Source | Subjects | Images | Images/subject | File type |
+|---|---|---|---|---|
+| VGGFace2-Ear-derived | 660 | 234,651 | ~355 | **all JPG** |
+| UERC 2019 training set | 166 | 2,304 | ~14 | PNG |
+| Newly collected | 484 | 11,700 | ~24 | PNG |
+
+- **The file-type proxy is exact for VGGFace2:** 660 JPG identities and exactly 234,651 JPG images. PNG covers both of the other sources, which we don't separate.
+- **The prepare job found 28 exact duplicates** (e.g. `0530/017.png`, `0717/340.jpg`). The final manifest has 248,627 images.
+- **Splits (every seed):** 917 train / 131 val (65 known + 66 unknown) / 262 test (131 + 131) identities, balanced across sources (e.g. test: 132 JPG, 130 PNG identities). Each seed has about 49k test probes and about 24k val probes.
+
+**Image imbalance (important).** VGGFace2 is half the people but **94% of the images**, so any metric averaged over probe images is dominated by VGGFace2 ears. From U1 on, results are also reported **per source**: VGGFace2 (JPG) vs. the other two (PNG), each evaluated with its own gallery and probes (`--by-source`).
+
 ## Decisions
 
-- **Source stratification.** The 3 source datasets are not labelled anywhere (the annotations only have gender and ethnicity). Each identity's **majority file type** (JPG/PNG) is used as a proxy, via `source_from: extension` in `configs/uerc.yaml`. The JPG share (94%) matches the stated VGGFace2-derived share. It is only used to balance splits. With 1,310 identities random splits balance well anyway.
+- **Source stratification.** The source is not in the annotations (they only have gender and ethnicity), so each identity's majority file type (JPG/PNG) is used, via `source_from: extension` in `configs/uerc.yaml`. This separates VGGFace2 from the rest exactly (see above).
 - **Image size.** The images are tiny, much smaller than EarVN's (median 77×110). We keep **128×96** so the recipe stays comparable with EarVN, which means about 3–4× upsampling. A smaller input (e.g. 96×64) could be tried later on validation if training speed matters.
 - **Splits.** Seeds 0–3 (0 for tuning on val only; 1–3 for the reported test runs). 70/10/20 gives about 917 / 131 / 262 identities per split. Val and test are half known, half unknown. There are 2 gallery images per identity, plus a g5 variant.
 - **Preparation runs on a compute node** (`scripts/dgx/prepare_uerc.sbatch`): manifest with exact-duplicate removal (hashes about 2.4 GB), splits, a parallel cache build (14 processes), and the package README printed into the log. The cache is **memory-mapped** when loaded, so jobs don't each copy 9.2 GB into RAM. Training jobs still request `--mem=64G` to be safe.
