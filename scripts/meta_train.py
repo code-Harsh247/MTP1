@@ -30,7 +30,7 @@ import torch.nn.functional as F
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from nlear.eval.protocol import run_protocol, variant_blobs  # noqa: E402
+from nlear.eval.protocol import run_protocol, source_blobs, variant_blobs  # noqa: E402
 from nlear.memory import AssocMemory, group_gallery, make_memory_scorer  # noqa: E402
 
 
@@ -111,6 +111,7 @@ def main():
     ap.add_argument("--momentum", type=float, default=0.9)
     ap.add_argument("--forget", type=float, default=0.3)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--by-source", action="store_true", help="also score each source separately")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -195,8 +196,12 @@ def main():
     model.eval()
     scorer = make_scorer(model, args.model, device)
     results = {}
-    for vname, vblob in variant_blobs(blob, cfg["data"], cfg["seed"]).items():
-        results[name + (f"@{vname}" if vname else "")] = run_protocol(vblob, scorer)
+    groups = {"": blob}
+    if args.by_source:
+        groups.update({f"#{s}": b for s, b in source_blobs(blob, cfg["data"], cfg["seed"]).items()})
+    for gname, gblob in groups.items():
+        for vname, vblob in variant_blobs(gblob, cfg["data"], cfg["seed"]).items():
+            results[name + gname + (f"@{vname}" if vname else "")] = run_protocol(vblob, scorer)
     out = run / name
     out.mkdir(exist_ok=True)
     torch.save(best_state, out / "model.pt")
