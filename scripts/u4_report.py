@@ -27,15 +27,20 @@ def main():
         val = {}
         for lr in LRS:
             f = root / f"tune/baseline_resnet50_{tag(alpha, lr)}/seed0/metrics.json"
+            if not f.exists():
+                # Amendment (2026-10-21, see notes/u4_m3.md): a configuration whose training diverged
+                # (NaN, no metrics written) is ineligible for selection.
+                print(f"seed-0 VAL {fam:8s}: lr {lr}: no metrics (training diverged) -> ineligible")
+                continue
             r = json.load(open(f))["results"]["cosine_proto"]
             assert "test" not in r, "tuning output must not contain test metrics"
             val[lr] = r["val"]
-        ranked = sorted(LRS, key=lambda lr: (val[lr][PRIMARY], val[lr]["auroc"]), reverse=True)
+        ranked = sorted(val, key=lambda lr: (val[lr][PRIMARY], val[lr]["auroc"]), reverse=True)
         top, nxt = ranked[0], ranked[1]
         pick = max((top, nxt), key=lambda lr: val[lr]["auroc"]) if val[top][PRIMARY] - val[nxt][PRIMARY] <= 0.005 else top
         chosen[fam] = tag(alpha, pick)
         print(f"seed-0 VAL {fam:8s}: " + "  ".join(f"lr {lr}: DIR@5% {val[lr][PRIMARY]:.4f} AUROC {val[lr]['auroc']:.4f}"
-                                                   for lr in LRS) + f"  -> {chosen[fam]}")
+                                                   for lr in val) + f"  -> {chosen[fam]}")
 
     def test(folder, key="cosine_proto", metric=PRIMARY):
         return np.array([json.load(open(root / folder / f"seed{s}/metrics.json"))["results"][key]["test"][metric]
