@@ -66,7 +66,7 @@ def footer(canvas, doc):
     canvas.saveState()
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(MUTED)
-    canvas.drawString(18 * mm, 10 * mm, "NL-Ear progress report  |  status as of 20 October 2026")
+    canvas.drawString(18 * mm, 10 * mm, "NL-Ear progress report  |  status as of 21 October 2026")
     canvas.drawRightString(A4[0] - 18 * mm, 10 * mm, f"page {doc.page}")
     canvas.restoreState()
 
@@ -75,7 +75,7 @@ def build():
     s = []
     s.append(p("NL-Ear: Progress Report", TITLE))
     s.append(p("Nested Learning for open-set ear recognition &nbsp;|&nbsp; Harsh Chattar, MTP &nbsp;|&nbsp; "
-               "status as of 20 October 2026", SUB))
+               "status as of 21 October 2026", SUB))
 
     s.append(p("1. Goal", H))
     s.append(p("Build an ear recognition system that (1) recognizes people it never saw during training, from a few "
@@ -98,6 +98,8 @@ def build():
         ["NL idea 2", "CMS: network parts that learn at different speeds",
          verdict("CMS blocks: no gain", False) + "; slow backbone: +0.04 rank-1 on EarVN, "
          + verdict("but not on UERC", False)],
+        ["NL idea 3", "M3: NL's multi-scale momentum optimizer, instead of AdamW",
+         verdict("Worse than AdamW", False)],
     ], [26, 98, 50], bold_first_col=True))
 
     s.append(p("3. Baseline results", H))
@@ -128,6 +130,8 @@ def build():
          + verdict("Slow backbone: +0.04 rank-1, 5 of 5 seeds", True)],
         ["U3", "UERC", "Does the slow-backbone effect hold at large scale?",
          verdict("No", False) + ": it reverses (rank-1 -0.015 vs an identical control, 0 of 3 seeds)"],
+        ["U4", "UERC", "Does NL's M3 optimizer train a better model than AdamW?",
+         verdict("No", False) + ": DIR@5% 0.301 vs 0.370 (0 of 3 seeds); its NL slow momentum makes it worse"],
     ], [16, 24, 64, 70])]))
 
     s.append(KeepTogether([p("5. Continual learning numbers (seen-people rank-1 after all groups)", H), table([
@@ -148,8 +152,9 @@ def build():
         "<b>NL memories do not beat simple cosine matching</b> for rejecting strangers, on small or large data, "
         "untrained or meta-learned. This is a clear, well-tested negative result.",
         "<b>NL's multi-speed idea did not generalize:</b> a slowly-updating backbone helped retain enrolled people "
-        "on the small EarVN set (+0.04 rank-1), but hurt slightly at UERC scale (-0.015). No NL mechanism tested "
-        "gives a robust improvement over standard methods.",
+        "on the small EarVN set (+0.04 rank-1), but hurt slightly at UERC scale (-0.015).",
+        "<b>All three NL families were tested</b> (memories, multi-speed architectures, the M3 optimizer); "
+        "<b>none beats standard methods at scale</b>.",
         "<b>Replay works well at scale</b> (UERC rank-1 0.72 vs 0.60 without it), but training on everyone at once "
         "(0.90) is still far ahead.",
         "<b>Method:</b> fixed rules before results, fresh seeds for confirmation; this caught one false positive.",
@@ -157,9 +162,8 @@ def build():
 
     s.append(p("7. Next steps", H))
     s += bullets([
-        "Optional last NL test: NL's M3 optimizer against AdamW for the standard recognizer.",
-        "Thesis write-up: strong UERC baselines, and a rigorous, pre-registered study of where Nested Learning "
-        "does and does not help open-set and continual ear recognition.",
+        "Thesis write-up: strong UERC baselines, and a rigorous, pre-registered study showing that Nested Learning "
+        "does not improve open-set or continual ear recognition at scale.",
     ])
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
