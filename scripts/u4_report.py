@@ -56,7 +56,11 @@ def main():
             print(f"  {label:28s}" + "".join(f"{test(folder, 'cosine_proto' + var, m).mean():9.3f}±{test(folder, 'cosine_proto' + var, m).std():.3f}"
                                              for m in ("rank1", "auroc", PRIMARY, "eer")))
 
-    m3, ctrl, adamw = (test(f) for f in arms.values())
+    # Look each arm up by name (bug fix 2026-10-21: an earlier positional unpack of arms.values(),
+    # whose order is AdamW, M3*, control*, silently assigned AdamW to `m3` and inverted the verdict).
+    adamw = test("baseline_resnet50_e4")
+    m3 = test(f"baseline_resnet50_{chosen['M3']}")
+    ctrl = test(f"baseline_resnet50_{chosen['control']}")
     w_a, w_c = int((m3 > adamw).sum()), int((m3 > ctrl).sum())
     print(f"\nDECISION (primary: test {PRIMARY}, 2 gallery, paired over seeds {SEEDS})")
     print(f"  M3* vs AdamW   : better on {w_a}/3, mean {np.mean(m3 - adamw):+.4f}  per seed {np.round(m3 - adamw, 4).tolist()}")
