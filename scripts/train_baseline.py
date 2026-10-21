@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.data.cache import GPUAugment, load_image_cache, to_input  # noqa: E402
 from nlear.data.manifest import load_manifest  # noqa: E402
 from nlear.eval.protocol import run_protocol, variant_blobs  # noqa: E402
+from nlear.cms import CMSScheduler  # noqa: E402
 from nlear.m3 import M3, split_params  # noqa: E402
 from nlear.models import ArcFace, EmbeddingNet  # noqa: E402
 
@@ -112,9 +113,18 @@ def main():
     print(f"[{dcfg['name']} seed {args.seed}] train {len(tr)} imgs / {len(classes)} ids; "
           f"eval {len(ev)} imgs; device {device}")
 
-    model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0)).to(device)
+    vit_cms = t.get("vit_cms") or {}
+    model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0),
+                         img_size=d["img_size"], vit_cms_levels=len(vit_cms.get("periods", []))).to(device)
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
-    if t.get("optimizer", "adamw") == "m3":
+    cms = None
+    if vit_cms:
+        # Option B: CMS inside the ViT ([NL] Sec. 7.3); slow copies accumulate gradients -> fp32.
+        t["amp"] = False
+        cms = CMSScheduler.for_vit(model, head, t, list(vit_cms["periods"]), float(vit_cms.get("lr_pow", 0.0)))
+        opts = [cms.fast_optimizer()]
+        print(f"ViT-CMS: MLP copy periods {vit_cms['periods']}, lr_pow {vit_cms.get('lr_pow', 0.0)}; fp32")
+    elif t.get("optimizer", "adamw") == "m3":
         # U4: NL's M3 optimizer (nlear/m3.py) for the weight matrices (body convs, neck projection);
         # AdamW keeps BN params, biases and the ArcFace head (Muon convention).
         m = t.get("m3", {})
@@ -164,6 +174,8 @@ def main():
             for o in opts:
                 o.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
+            if cms is not None:
+                cms.hook(step, scaler)
             for o in opts:
                 scaler.step(o)
             scaler.update()

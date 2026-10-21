@@ -1,4 +1,5 @@
 """Backbone (the slow NL level) and the ArcFace training head."""
+import copy
 import math
 
 import torch
@@ -13,6 +14,37 @@ def _resnet(name, pretrained):
     feat_dim = net.fc.in_features
     net.fc = nn.Identity()
     return net, feat_dim
+
+
+def is_vit(arch):
+    return arch.startswith(("deit", "vit"))
+
+
+def _vit(name, pretrained, img_size):
+    """timm ViT/DeiT as a feature extractor at the ear input size (positional embeddings resampled)."""
+    import timm
+    net = timm.create_model(name, pretrained=pretrained, num_classes=0, img_size=tuple(img_size))
+    return net, net.num_features
+
+
+class CMSParallelMLP(nn.Module):
+    """CMS for a pretrained Transformer MLP ([NL] Sec. 7.3 + independent variant, Eq. 74).
+
+    `levels` copies of the pretrained MLP, combined by a learnable weighted sum (softmax of
+    logits, initialised uniform). At initialisation every copy equals the pretrained MLP, so the
+    module computes exactly what the pretrained block did. The copies differ only through their
+    update frequencies (nlear.cms.CMSScheduler.for_vit): if all copies updated every step they
+    would receive identical (Adam-normalised) updates and stay identical, i.e. a plain ViT.
+    """
+
+    def __init__(self, mlp, levels=3):
+        super().__init__()
+        self.copies = nn.ModuleList([copy.deepcopy(mlp) for _ in range(levels)])
+        self.agg_logits = nn.Parameter(torch.zeros(levels))
+
+    def forward(self, x):
+        w = torch.softmax(self.agg_logits, 0)
+        return sum(w[i] * m(x) for i, m in enumerate(self.copies))
 
 
 class CMSBlock(nn.Module):
@@ -55,9 +87,15 @@ class EmbeddingNet(nn.Module):
     neck="linear": dropout, linear, BN (the Phase 2 baseline); neck="cms": CMSNeck."""
 
     def __init__(self, arch="resnet18", emb_dim=512, pretrained=True, dropout=0.0,
-                 neck="linear", cms_levels=3, cms_mult=2):
+                 neck="linear", cms_levels=3, cms_mult=2, img_size=(128, 96), vit_cms_levels=0):
         super().__init__()
-        self.body, feat_dim = _resnet(arch, pretrained)
+        if is_vit(arch):
+            self.body, feat_dim = _vit(arch, pretrained, img_size)
+            if vit_cms_levels:
+                for blk in self.body.blocks:
+                    blk.mlp = CMSParallelMLP(blk.mlp, vit_cms_levels)
+        else:
+            self.body, feat_dim = _resnet(arch, pretrained)
         if neck == "cms":
             self.neck = CMSNeck(feat_dim, emb_dim, cms_levels, cms_mult, dropout)
         else:

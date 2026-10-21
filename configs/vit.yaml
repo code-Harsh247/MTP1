@@ -1,0 +1,21 @@
+# Option B (notes/b_vit_cms.md): ImageNet-pretrained DeiT-S + ArcFace. Same pipeline as
+# configs/baseline.yaml (augmentation, dropout, ArcFace, schedule); ViT-standard weight decay.
+# lr_body and epochs are tuned on UERC seed-0 validation in B0 (plain ViT only).
+# All Option-B arms run in fp32 (CMS accumulates gradients; same precision for every arm).
+train:
+  arch: deit_small_patch16_224   # 22M params, ImageNet-1k, ImageNet mean/std; 48 tokens at 128x96
+  pretrained: true
+  emb_dim: 512
+  epochs: 4
+  batch_size: 64
+  lr_body: 1.0e-4
+  lr_head: 1.0e-3
+  weight_decay: 0.05
+  warmup_epochs: 1
+  dropout: 0.3
+  aug: {degrees: 20.0, translate: 0.1, scale: [0.8, 1.2], jitter: 0.4}
+  arcface_s: 30.0
+  arcface_m: 0.3
+  amp: false
+  eval_every: 1
+scorers: [cosine_proto, cosine_max, subspace]

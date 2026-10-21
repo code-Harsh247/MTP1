@@ -60,6 +60,8 @@ def default_name(args):
     if args.cms_periods:
         name += (f"_cms{args.cms_periods.replace(',', '-')}_b{args.cms_body_period}"
                  f"_p{args.cms_lr_pow:g}")
+    elif args.vit_cms_periods:
+        name += f"_vitcms{args.vit_cms_periods.replace(',', '-')}_p{args.vit_cms_lr_pow:g}"
     elif args.fp32:
         name += "_fp32"   # CMS runs are always fp32; mark it only where it differs from the default
     return name
@@ -105,6 +107,9 @@ def main():
     ap.add_argument("--cms-mult", type=int, default=2, help="CMS block hidden width multiplier")
     ap.add_argument("--fp32", action="store_true",
                     help="train in fp32 (no AMP), so non-CMS arms match the CMS arms' precision (C3b)")
+    ap.add_argument("--vit-cms-periods", default="",
+                    help="Option B: CMS inside a ViT, update period per MLP copy, e.g. 1,16,256")
+    ap.add_argument("--vit-cms-lr-pow", type=float, default=0.0, help="ViT-CMS: slow lr = lr * period**pow")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", default="runs")
     args = ap.parse_args()
@@ -139,9 +144,11 @@ def main():
           f"{int(df['cl_role'].str.startswith('held').sum())} imgs")
 
     periods = [int(x) for x in args.cms_periods.split(",")] if args.cms_periods else []
+    vit_periods = [int(x) for x in args.vit_cms_periods.split(",")] if args.vit_cms_periods else []
     model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0),
                          neck="cms" if periods else "linear", cms_levels=len(periods) or 3,
-                         cms_mult=args.cms_mult).to(device)
+                         cms_mult=args.cms_mult, img_size=d["img_size"],
+                         vit_cms_levels=len(vit_periods)).to(device)
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
     cms = None
     if periods:
@@ -150,6 +157,10 @@ def main():
                            args.cms_lr_pow)
         print(f"CMS neck: block periods {periods}, body {args.cms_body_period}, proj "
               f"{args.cms_proj_period}, lr_pow {args.cms_lr_pow}; fp32")
+    if vit_periods:
+        t["amp"] = False
+        cms = CMSScheduler.for_vit(model, head, t, vit_periods, args.vit_cms_lr_pow)
+        print(f"ViT-CMS: MLP copy periods {vit_periods}, lr_pow {args.vit_cms_lr_pow}; fp32")
     if args.fp32:
         t["amp"] = False
     scaler = torch.amp.GradScaler(enabled=t["amp"] and device.type == "cuda")

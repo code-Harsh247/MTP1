@@ -17,6 +17,7 @@
 set -uo pipefail
 cd /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear
 PY=/home/dsamantaai/miniconda3/envs/harsh_nlear/bin/python   # full path: conda activate is unreliable here
+export HF_HUB_OFFLINE=1   # pretrained ViT weights are pre-downloaded on the login node (compute nodes may be offline)
 
 N=${SLURM_ARRAY_TASK_COUNT:?not an array job}
 NLINES=$(grep -c . "$TASKS")

@@ -37,7 +37,27 @@ class CMSScheduler:
         for block, p in zip(neck.blocks, periods):
             groups.append((p, list(block.parameters()), t["lr_head"]))
         groups.append((1, list(head.parameters()), t["lr_head"]))
+        self._setup(groups, t, lr_pow)
 
+    @classmethod
+    def for_vit(cls, model, head, t, periods, lr_pow=0.0):
+        """CMS inside a ViT (Option B): copy l of every block's CMSParallelMLP updates every
+        periods[l] steps; attention, embeddings, norms, aggregation weights, neck and head are fast."""
+        self = cls.__new__(cls)
+        blocks = [b for b in model.body.blocks if hasattr(b.mlp, "copies")]
+        if not blocks or len(blocks[0].mlp.copies) != len(periods):
+            raise ValueError("model has no CMSParallelMLP blocks with that many levels")
+        levels = [[p for b in blocks for p in b.mlp.copies[i].parameters()] for i in range(len(periods))]
+        in_levels = {id(p) for lvl in levels for p in lvl}
+        rest = [p for p in model.body.parameters() if id(p) not in in_levels]
+        groups = [(per, lvl, t["lr_body"]) for per, lvl in zip(periods, levels)]
+        groups.append((1, rest, t["lr_body"]))
+        groups.append((1, list(model.neck.parameters()) + list(head.parameters()), t["lr_head"]))
+        self._setup(groups, t, lr_pow)
+        return self
+
+    def _setup(self, groups, t, lr_pow):
+        self.t = t
         self.fast = []                       # [(params, lr)] stepped by the per-task optimizer
         by_period = {}
         for period, params, lr in groups:
