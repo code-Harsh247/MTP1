@@ -42,4 +42,19 @@ On ResNet-50, CMS only touched a small neck on top of a CNN without MLP blocks (
 
 ## Results
 
-*(appended after the runs)*
+### B0 tuning (2026-10-21; `runs_dgx/b0_selection.txt`)
+
+| Plain ViT, seed-0 VAL | DIR@5% | AUROC | Rank-1 |
+|---|---|---|---|
+| lr_body 3e-5, 4 epochs | 0.435 | 0.825 | 0.725 |
+| **lr_body 3e-5, 8 epochs** | **0.470** | **0.839** | **0.750** |
+| lr_body 1e-4, 4 epochs | 0.452 | 0.826 | 0.730 |
+| lr_body 1e-4, 8 epochs | 0.385 | 0.798 | 0.660 (overfits) |
+
+**Selected: lr_body 3e-5, 8 epochs**, a clear winner with no tie-break (`configs/vit_selected.yaml`). For B2 this means 870 × 8/4 = **1,740 steps per task**.
+
+On the same seed-0 validation split, the plain ViT is already stronger than the ResNet-50 U1 recipe (val DIR@5% 0.47 vs 0.43). This is validation only; B1 reports test.
+
+### B1 / B2
+
+*(appended after round 2)*

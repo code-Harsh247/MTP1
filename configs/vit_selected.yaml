@@ -1,0 +1,27 @@
+# Written by scripts/b0_select.py from UERC seed-0 validation (B0): lr_body 3e-5, epochs 8
+train:
+  arch: deit_small_patch16_224
+  pretrained: true
+  emb_dim: 512
+  epochs: 8
+  batch_size: 64
+  lr_body: 3.0e-05
+  lr_head: 0.001
+  weight_decay: 0.05
+  warmup_epochs: 1
+  dropout: 0.3
+  aug:
+    degrees: 20.0
+    translate: 0.1
+    scale:
+    - 0.8
+    - 1.2
+    jitter: 0.4
+  arcface_s: 30.0
+  arcface_m: 0.3
+  amp: false
+  eval_every: 1
+scorers:
+- cosine_proto
+- cosine_max
+- subspace
