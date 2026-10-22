@@ -66,7 +66,7 @@ def footer(canvas, doc):
     canvas.saveState()
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(MUTED)
-    canvas.drawString(18 * mm, 10 * mm, "NL-Ear progress report  |  status as of 21 October 2026")
+    canvas.drawString(18 * mm, 10 * mm, "NL-Ear progress report  |  status as of 23 October 2026")
     canvas.drawRightString(A4[0] - 18 * mm, 10 * mm, f"page {doc.page}")
     canvas.restoreState()
 
@@ -75,7 +75,7 @@ def build():
     s = []
     s.append(p("NL-Ear: Progress Report", TITLE))
     s.append(p("Nested Learning for open-set ear recognition &nbsp;|&nbsp; Harsh Chattar, MTP &nbsp;|&nbsp; "
-               "status as of 21 October 2026", SUB))
+               "status as of 23 October 2026", SUB))
 
     s.append(p("1. Goal", H))
     s.append(p("Build an ear recognition system that (1) recognizes people it never saw during training, from a few "
@@ -100,6 +100,8 @@ def build():
          + verdict("but not on UERC", False)],
         ["NL idea 3", "M3: NL's multi-scale momentum optimizer, instead of AdamW",
          verdict("Worse than AdamW", False)],
+        ["NL idea 2 in a ViT", "CMS inside every block of a pretrained ViT (the paper's own design)",
+         verdict("Recognition: worse", False) + "; continual: " + verdict("small gain", True) + ", but more forgetting"],
     ], [26, 98, 50], bold_first_col=True))
 
     s.append(p("3. Baseline results", H))
@@ -110,9 +112,11 @@ def build():
         ["AWE (in the wild, small)", "70", "0.410", "0.626", "0.105"],
         ["<b>UERC 2023</b>", "<b>917</b>", "<b>0.662</b>", "<b>0.784</b>", "<b>0.370</b>"],
         ["UERC 2023, 5 enrollment photos", "917", "0.809", "0.860", "0.536"],
-    ], [58, 30, 26, 26, 26], highlight_rows=(4,)))
+        ["<b>UERC 2023, ViT (DeiT-S)</b>", "<b>917</b>", "<b>0.721</b>", "<b>0.808</b>", "<b>0.433</b>"],
+    ], [58, 30, 26, 26, 26], highlight_rows=(4, 6)))
     s.append(p("Test sets, 2 enrollment photos per person unless noted; means over 5 seeds (3 for UERC; UERC seed-to-seed "
-               "spread is at most 0.010). Datasets differ, so rows are not directly comparable. "
+               "spread is at most 0.010). Datasets differ, so rows are not directly comparable. ResNet-50 unless noted; "
+               "the ViT row used fp32 and 8 epochs (its own tuned recipe). "
                "<b>Rank-1</b>: the right person is the top match. <b>AUROC</b>: how well known and unknown people are "
                "separated (1.0 perfect, 0.5 chance). <b>DIR@5%</b>: share of known people both accepted and correctly "
                "identified when only 5% of strangers are wrongly accepted.", NOTE))
@@ -132,6 +136,11 @@ def build():
          verdict("No", False) + ": it reverses (rank-1 -0.015 vs an identical control, 0 of 3 seeds)"],
         ["U4", "UERC", "Does NL's M3 optimizer train a better model than AdamW?",
          verdict("No", False) + ": DIR@5% 0.301 vs 0.370 (0 of 3 seeds); its NL slow momentum makes it worse"],
+        ["B1", "UERC", "Does CMS inside a pretrained ViT reject strangers better than the plain ViT?",
+         verdict("No", False) + ": DIR@5% 0.408 vs 0.433 (0 of 3 seeds)"],
+        ["B2", "UERC", "Does CMS inside a ViT help continual learning (with replay)?",
+         verdict("Yes, slightly", True) + ": rank-1 +0.012 (3 of 3); but it learns new people better while "
+         "forgetting more, and hurts unseen people"],
     ], [16, 24, 64, 70])]))
 
     s.append(KeepTogether([p("5. Continual learning numbers (seen-people rank-1 after all groups)", H), table([
@@ -153,17 +162,17 @@ def build():
         "untrained or meta-learned. This is a clear, well-tested negative result.",
         "<b>NL's multi-speed idea did not generalize:</b> a slowly-updating backbone helped retain enrolled people "
         "on the small EarVN set (+0.04 rank-1), but hurt slightly at UERC scale (-0.015).",
-        "<b>All three NL families were tested</b> (memories, multi-speed architectures, the M3 optimizer); "
-        "<b>none beats standard methods at scale</b>.",
-        "<b>Replay works well at scale</b> (UERC rank-1 0.72 vs 0.60 without it), but training on everyone at once "
-        "(0.90) is still far ahead.",
+        "<b>All three NL families were tested</b> (incl. CMS inside a ViT). None improves open-set recognition; the "
+        "only positive is a small continual gain (+0.012 rank-1) that comes from more capacity, not less forgetting.",
+        "<b>The best ear model is a plain ViT</b> (DeiT-S): UERC rank-1 0.721, DIR@5% 0.433, vs 0.662 and 0.370 "
+        "for ResNet-50.",
         "<b>Method:</b> fixed rules before results, fresh seeds for confirmation; this caught one false positive.",
     ])
 
     s.append(p("7. Next steps", H))
     s += bullets([
-        "Thesis write-up: strong UERC baselines, and a rigorous, pre-registered study showing that Nested Learning "
-        "does not improve open-set or continual ear recognition at scale.",
+        "Thesis write-up: strong UERC baselines (ResNet-50 and ViT), and a rigorous, pre-registered study of where "
+        "Nested Learning does and does not help open-set and continual ear recognition.",
     ])
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

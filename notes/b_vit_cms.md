@@ -55,6 +55,44 @@ On ResNet-50, CMS only touched a small neck on top of a CNN without MLP blocks (
 
 On the same seed-0 validation split, the plain ViT is already stronger than the ResNet-50 U1 recipe (val DIR@5% 0.47 vs 0.43). This is validation only; B1 reports test.
 
-### B1 / B2
+### B1 / B2 (2026-10-23; DGX job 35048, 12 runs, 0 failures; `runs_dgx/b12_report.txt`)
 
-*(appended after round 2)*
+The report script, task list and model/scheduler code were unchanged since the pre-registration commit `1797822`. An **independent cross-check** computed straight from the raw `metrics.json` files agrees with every decision number.
+
+**B1, static open-set (test, seeds 1–3, cosine_proto):**
+
+| Model | Rank-1 | AUROC | **DIR@5%** | EER | Rank-1 (g5) | DIR@5% (g5) |
+|---|---|---|---|---|---|---|
+| ResNet-50 (U1, AMP, 4 epochs) | 0.662 ± 0.010 | 0.784 | 0.370 ± 0.007 | 0.069 | 0.809 | 0.536 |
+| **ViT / DeiT-S** (fp32, 8 epochs) | **0.721 ± 0.008** | **0.808** | **0.433 ± 0.014** | **0.064** | **0.843** | **0.605** |
+| CMS-ViT (fp32, 8 epochs) | 0.687 ± 0.011 | 0.798 | 0.408 ± 0.026 | 0.069 | 0.821 | 0.578 |
+
+**Decision B1:** CMS-ViT vs ViT, DIR@5% better on **0/3** seeds (−0.021, −0.012, −0.042; mean −0.025). **VERDICT B1: NO-GO.** CMS makes the static open-set model worse on every metric.
+
+**B2, continual learning (UERC P1, 10 tasks, replay k=5, test, seeds 1–3):**
+
+| Arm | **Seen rank-1** | Forget rank-1 ↓ | Seen DIR@5% | Forget DIR@5% ↓ | Unseen AUROC | Unseen DIR@5% |
+|---|---|---|---|---|---|---|
+| ViT + R | 0.732 ± 0.008 | **0.107** | 0.427 | **0.168** | **0.716** | **0.240** |
+| CMS-ViT + R | **0.743 ± 0.005** | 0.120 | **0.438** | 0.194 | 0.698 | 0.209 |
+
+**Decision B2:** final seen rank-1 better on **3/3** seeds (+0.008, +0.009, +0.018; mean **+0.012**). **VERDICT B2: GO** on the pre-registered metric.
+
+### Reading B2 honestly
+
+1. **The gain is small**: +0.012 rank-1, about 1.5 seed-stds. With 3 seeds, "3 of 3" would happen by chance 1 time in 8 (sign test). It passed the rule we set, but it is not strong evidence on its own.
+2. **It does not work the way NL claims.** NL proposes CMS to **reduce forgetting**. Here forgetting is **worse** in 3/3 seeds (rank-1 forgetting 0.120 vs 0.107; DIR@5% 0.194 vs 0.168). The gain comes from **learning each new group better** (`runs_dgx/b2_mechanism.txt`):
+
+   | | Rank-1 right after learning a task | Final, old tasks 1–9 |
+   |---|---|---|
+   | ViT + R | 0.828 | 0.715 |
+   | CMS-ViT + R | 0.851 (+0.023, every seed) | 0.725 |
+
+   The multi-frequency copies act as **extra plasticity / effective capacity**, not as a better long-term memory.
+3. **It costs unseen-people performance:** unseen AUROC is lower on 3/3 seeds (−0.018), as is unseen DIR@5% (−0.031). For a biometric system that must also handle new people, that is a real downside.
+
+### Conclusions from Option B
+
+- **CMS inside a pretrained ViT, the paper's own recommended design, does not improve open-set ear recognition** (B1: worse).
+- **In continual learning it gives a small, consistent gain in final accuracy on enrolled people** (B2: +0.012 rank-1, 3/3). But it gets there through more plasticity rather than less forgetting, and it makes unseen-people rejection worse. This is the **only pre-registered positive NL result in the project**, and it should be reported with exactly these caveats.
+- **A useful side result: the plain DeiT-S ViT is the strongest ear model in the project** (UERC test rank-1 0.721, AUROC 0.808, DIR@5% 0.433, vs 0.662 / 0.784 / 0.370 for ResNet-50). This comparison is not perfectly controlled: the ViT ran in fp32 for 8 epochs, the ResNet in AMP for 4, each with its own tuned recipe.
