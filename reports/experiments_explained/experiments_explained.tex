@@ -1,0 +1,625 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,tabularx,array}
+\usepackage{enumitem}
+\usepackage{tocloft}
+\setlength{\cftbeforesecskip}{1pt}
+\setlength{\cftbeforetoctitleskip}{0.6em}
+\setlength{\cftaftertoctitleskip}{0.4em}
+\usepackage{xcolor}
+\usepackage[skins,breakable]{tcolorbox}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+\setlist{itemsep=0.15em,topsep=0.3em}
+\renewcommand{\arraystretch}{1.22}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\definecolor{qc}{HTML}{1F5FA8}
+\definecolor{mc}{HTML}{2E7D32}
+\definecolor{vc}{HTML}{7B1FA2}
+\definecolor{wc}{HTML}{B26A00}
+\newtcolorbox{question}{enhanced,colback=qc!5,colframe=qc,fonttitle=\bfseries,title=The question,
+  boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=3pt,bottom=3pt}
+\newtcolorbox{means}[1][What this means]{enhanced,breakable,colback=mc!5,colframe=mc,fonttitle=\bfseries,title=#1,
+  boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=3pt,bottom=3pt}
+\newtcolorbox{verdict}{enhanced,colback=vc!5,colframe=vc,fonttitle=\bfseries,title=Verdict,
+  boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=3pt,bottom=3pt}
+\newtcolorbox{careful}[1][Be careful]{enhanced,breakable,colback=wc!6,colframe=wc,fonttitle=\bfseries,title=#1,
+  boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=3pt,bottom=3pt}
+
+\title{\textbf{Our Experiments, Explained Simply}\\[0.3em]
+\large Nested Learning for open-set ear recognition: every experiment, its result, and what it means}
+\author{Harsh Chattar}
+\date{28 October 2026}
+
+\begin{document}
+\maketitle
+
+\begin{means}[The whole project in one paragraph]
+We asked whether ideas from \emph{Nested Learning} (NL) can make a better ear-recognition system: one that recognises enrolled people from a few photos, rejects strangers, and can learn new people over time. We first built strong standard baselines. Then we tested NL's three families of ideas (memories, multi-speed learning, and NL's optimizer), first on small datasets and then at scale on UERC. Every decision rule was written down \emph{before} the run it judged. \textbf{None of the NL ideas beat the standard methods for recognising or rejecting people.} The only positive result is a small gain in continual learning from multi-speed copies inside a Vision Transformer, and it comes with costs. Along the way we found what actually matters: the number of people the model is trained on, replaying old photos when learning new people, and a pretrained Vision Transformer backbone.
+\end{means}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\setcounter{section}{-1}
+\section{How to read this document}
+
+\subsection{The task}
+\begin{itemize}
+  \item \textbf{Open-set recognition.} Some people are \emph{enrolled}: we store a few photos of each (the \textbf{gallery}). Later a new photo arrives (a \textbf{probe}). The system must either name the right enrolled person, or say ``this is a stranger''.
+  \item \textbf{Identity-disjoint.} The people used for testing are never seen in training. This is the supervisor's requirement: the model must work on \emph{new} people.
+  \item In every test, half of the test people are enrolled (\textbf{known}) and half are not (\textbf{unknown}, strangers). Each known person has \textbf{2 gallery photos} (main setting) or \textbf{5} (``g5'' setting).
+\end{itemize}
+
+\subsection{The numbers}
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}L{3.2cm}X@{}}
+\toprule
+\textbf{Number} & \textbf{What it means}\\
+\midrule
+Rank-1 & For photos of known people: how often the best match is the right person. Ignores strangers. Higher is better.\\
+AUROC & How well the system's confidence separates known people from strangers. 0.5 = coin flip, 1.0 = perfect. Higher is better.\\
+\textbf{DIR@5\%} (main number) & Set the acceptance threshold so that \textbf{5\% of strangers get wrongly accepted}. DIR@5\% is the fraction of known people's photos that are then \emph{accepted and correctly named}. It combines naming and rejecting in one number. Higher is better.\\
+EER & Equal error rate for 1-to-1 verification. Lower is better.\\
+mean $\pm$ std & We repeat each experiment on several random choices of people (``seeds''). We report the average and the spread.\\
+``3/3 seeds'' & In how many repeats method A beat method B on the \emph{same} people. Comparing on the same people (``paired'') removes a lot of noise.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Continual-learning numbers} (Experiments 4--6, 9, 11). The training people are split into groups (``tasks'') and the model learns one group at a time.
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}L{3.2cm}X@{}}
+\toprule
+Seen people & People the model was trained on, tested on photos held back from training. Measures \emph{remembering}.\\
+Unseen people & Brand-new people (the normal open-set test). Measures \emph{generalising}.\\
+Forgetting & For each group: its best score ever minus its score at the end, averaged. Lower is better.\\
+Joint & Train on all groups at once. The best you can hope for (upper bound).\\
+Naive & Train on each group in turn with no protection. The worst case (lower bound).\\
+Replay & While learning a new group, mix in a few stored photos of each old person (we keep 2 or 5 per person).\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{How we kept ourselves honest}
+\begin{itemize}
+  \item \textbf{Tune on validation, report on test.} All settings were chosen on validation people only. Test people were used once, at the end.
+  \item \textbf{Pre-registration.} Before each important run we committed to git the exact rule that would decide GO / NO-GO. This stops us from reading the results we like after the fact.
+  \item \textbf{Controls.} Every NL method was compared with an \emph{identical} model minus the NL part. This tells us whether a gain comes from NL or from something else (more parameters, different precision, etc.).
+  \item \textbf{Fresh seeds for confirmation.} When something looked good by accident, we re-tested it on new, untouched people.
+\end{itemize}
+
+\subsection{The datasets}
+\begin{center}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Dataset} & \textbf{People} & \textbf{Images} & \textbf{Character}\\
+\midrule
+AMI & 100 & 700 & controlled lab photos; easy\\
+EarVN1.0 & 164 & 28{,}410 & ``in the wild''; our main development set\\
+AWE & 100 & 1{,}000 & in the wild, very small; hard\\
+UERC 2023 & 1{,}310 & 248{,}627 & the community benchmark; our large-scale test (on the DGX)\\
+\bottomrule
+\end{tabular}
+\end{center}
+Every split uses 70\% of people for training, 10\% for validation and 20\% for testing. All images are resized to 128$\times$96 (ears are taller than wide). We also found and removed duplicate files (e.g.\ one AMI person was stored twice, and 28 UERC images were exact copies).
+
+% =====================================================================
+\section{Experiment 1 --- Baselines: how good is a standard ear model?}
+
+\begin{question}
+Before testing anything new, how well does a standard, well-tuned ear model do? What number does NL have to beat?
+\end{question}
+
+\textbf{What we did.} An ImageNet-pretrained ResNet-50, fine-tuned with ArcFace loss (the standard face/ear recognition loss) on the training people. We tried four ways of comparing a probe to the gallery:
+\begin{itemize}
+  \item \textbf{cosine\_proto}: average each person's gallery photos into one ``prototype'' and compare by cosine similarity;
+  \item \textbf{cosine\_max}: compare to the closest single gallery photo;
+  \item \textbf{subspace}: how well the probe fits in the space spanned by the person's gallery photos (mathematically the same as a simple linear NL memory);
+  \item \textbf{EVM}: the Extreme Value Machine, the classic open-set method from the literature.
+\end{itemize}
+
+\textbf{What we learned while tuning (EarVN validation).}
+\begin{itemize}
+  \item Fine-tuning is essential: frozen ImageNet features are at chance for rejecting strangers (AUROC 0.47).
+  \item \textbf{Open-set quality peaks early and then gets worse}, even while training accuracy keeps rising. Trained too long, the model over-specialises to the training people, and strangers start to look familiar.
+  \item Training length must be set in \emph{steps}, not epochs. Our first AMI/AWE runs reused ``5 epochs'' from EarVN, which was only about 40 steps on those small sets. We caught this, discarded those runs and re-tuned.
+\end{itemize}
+
+\textbf{Results (test, 5 seeds, cosine\_proto, 2 gallery photos).}
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Dataset} & \textbf{Rank-1} & \textbf{AUROC} & \textbf{DIR@5\%}\\
+\midrule
+AMI (controlled) & 0.948 & 0.937 & 0.760\\
+EarVN1.0 (in the wild) & 0.591 & 0.716 & 0.209\\
+AWE (in the wild, tiny) & 0.410 & 0.626 & 0.105\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+With 5 gallery photos on EarVN, DIR@5\% rises from 0.209 to 0.316.
+
+\textbf{Scorers compared (EarVN, DIR@5\%):} cosine\_proto 0.209, subspace 0.189, cosine\_max 0.168, EVM 0.159. EVM had one advantage: its acceptance threshold, set on validation, transferred to test much more accurately (about 3\% strangers accepted for a 5\% target, against about 10\% for cosine).
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item On real-world ears, \textbf{rejecting strangers is the hard part}. At a 5\% false-accept rate, only about 1 in 5 known photos is accepted and correctly named on EarVN. There is a lot of room to improve.
+  \item \textbf{The simplest scorer, cosine to the prototype, is the best.} It became the baseline every NL idea had to beat.
+  \item The subspace scorer equals a linear NL memory and is \emph{worse} than cosine. So an NL memory would need something extra (depth, meta-learning) to win.
+  \item EVM is designed for many samples per class. With only 2--5 photos per person its statistics are too noisy.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 2 --- Phase 3: can an NL memory reject strangers better? (EarVN)}
+
+\begin{question}
+The original thesis idea: give each enrolled person a small Titans-style NL memory, written from their gallery photos. A stranger should ``surprise'' every memory (large prediction error). Does this surprise reject strangers better than cosine similarity?
+\end{question}
+
+\textbf{What we did.}
+\begin{itemize}
+  \item Each enrolled person gets a memory that learns ``key $\to$ value'' from their gallery embeddings, with momentum and a forget gate (Titans' write rule). The probe's \textbf{surprise} is the score.
+  \item Arms compared, all on the \emph{same} embeddings:
+  \begin{enumerate}[leftmargin=1.4em]
+    \item cosine\_proto (baseline);
+    \item a linear memory (we proved it equals the subspace scorer);
+    \item a deep (MLP) memory with hand-tuned settings;
+    \item the same deep memory, \textbf{meta-trained}: its starting point, projections and write rule are learned from practice episodes;
+    \item[4$'$.] meta-training only the write rule;
+    \item[4b.] a \textbf{control}: the same meta-training, but with cosine and no memory.
+  \end{enumerate}
+  \item \textbf{Split backbone.} Meta-training needs people the backbone has \emph{not} seen. So we held out 58 of the 115 training people for meta-training and trained the backbone on the other 57.
+\end{itemize}
+
+\textbf{Results (test, 5 seeds, 2 gallery photos).}
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Arm} & \textbf{Rank-1} & \textbf{DIR@5\%} & \textbf{Beats cosine}\\
+\midrule
+1 cosine\_proto & \textbf{0.441} & \textbf{0.122} & ---\\
+2 linear memory & 0.382 & 0.116 & 3/5\\
+3 deep memory & 0.381 & 0.116 & 1/5\\
+4 meta-trained memory & 0.381 & 0.116 & 1/5\\
+4$'$ meta-trained write rule & 0.388 & 0.121 & 2/5\\
+4b control (no memory) & 0.444 & 0.117 & 0/5\\
+\bottomrule
+\end{tabular}
+\end{center}
+With 5 gallery photos the deep memory was clearly worse (DIR@5\% 0.093 vs 0.165).
+
+\begin{verdict}
+\textbf{NO-GO.} No memory beat cosine. Meta-training never improved on its untrained starting point in any seed.
+\end{verdict}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item Surprise-based rejection is \textbf{no better than plain cosine}, and memories name people worse (rank-1 0.38 vs 0.44).
+  \item \textbf{Meta-training learned nothing that transferred.} Even the no-memory control gained nothing, so 58 training people were simply too few to learn from. (Experiment 8 re-tests this with 8$\times$ more people.)
+  \item With more gallery photos, a small memory \emph{overfits} those exact photos and recognises the same person's other photos worse.
+  \item \textbf{Useful diagnostic findings:} the forget gate was the most important part of the memory (matching the Titans paper). And meta-learning the starting memory made things worse: it learned an ``average ear'' inside every memory, so strangers stopped being surprising. We call this the \textbf{identity trap}.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 3 --- C1: measuring forgetting}
+
+\begin{question}
+NL was designed for continual learning. So we switched direction: learn people group by group over time. First, how much does a normal model forget?
+\end{question}
+
+\textbf{What we did.} The 115 EarVN training people were dealt into \textbf{5 groups of 23}. The model learns one group at a time (250 steps each). After every group we test all groups so far. 20\% of each training person's photos are held back to test remembering.
+
+\textbf{Results (5 seeds).}
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Method} & \textbf{Seen DIR@5\%} & \textbf{Seen rank-1} & \textbf{Forgetting} & \textbf{Unseen AUROC}\\
+\midrule
+Joint (all at once) & 0.491 & 0.802 & --- & 0.685\\
+Naive (one by one) & 0.181 & 0.531 & 0.170 & 0.605\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Example of forgetting:} group 1 scores 0.27 right after it is learned, and 0.11 one group later.
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item Classic \textbf{catastrophic forgetting}: each new group is learned well and the previous one drops by 2--5$\times$. The spread across seeds is small, so this is a real effect.
+  \item Forgetting also hurts \textbf{strangers}: unseen AUROC falls from 0.685 to 0.605. Learning narrow groups over-specialises the model.
+  \item There is a big gap (0.31 DIR@5\%) between naive and joint. That is the room a continual-learning method can fill.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 4 --- C2: standard continual-learning methods}
+
+\begin{question}
+How well do the standard fixes for forgetting work? These set the bar NL must beat.
+\end{question}
+
+\textbf{What we did.} Three standard methods on the same 5-group setup:
+\begin{itemize}
+  \item \textbf{EWC}: penalise changes to weights that were important for old groups;
+  \item \textbf{LwF}: keep the new model's embeddings close to the old model's;
+  \item \textbf{Replay}: store a few photos per old person and mix them into training.
+\end{itemize}
+Strength settings were tuned on seed 0; results are on seeds 1--5 (run on the DGX).
+
+\textbf{Results (seeds 1--5).}
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Method} & \textbf{Seen DIR@5\%} & \textbf{Forgetting} & \textbf{Unseen DIR@5\%}\\
+\midrule
+Joint (upper bound) & 0.501 & --- & 0.181\\
+Naive (lower bound) & 0.183 & 0.180 & 0.089\\
+EWC (tuned) & 0.185 & 0.171 & 0.077\\
+EWC (strong) & 0.148 & \textbf{0.032} & 0.059\\
+LwF (tuned) & 0.198 & 0.154 & 0.081\\
+LwF (strong) & 0.158 & 0.037 & 0.075\\
+Replay, 2 photos/person & 0.181 & 0.111 & 0.095\\
+\textbf{Replay, 5 photos/person} & \textbf{0.221} & 0.071 & 0.083\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Replay with 5 photos per person is the best baseline.} It ends highest and cuts forgetting from 0.18 to 0.07.
+  \item \textbf{Stability vs plasticity.} Strong EWC/LwF almost stop forgetting, but they end \emph{lower} than naive. They protect old people by freezing the model, which then learns new people badly.
+  \item \textbf{Not forgetting is not enough.} Even with near-zero forgetting, every method ends far below joint training (about 0.2 vs 0.5). Learning 23 people at a time builds a weaker model than learning all 115 together.
+  \item \textbf{No method helps strangers.} Unseen-people scores stay at naive's level for everyone.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 5 --- C3: NL's multi-speed memory (CMS) on ResNet-50}
+
+\begin{question}
+Does NL's Continuum Memory System, parts of the network that update at different speeds, reduce forgetting and beat the C2 baselines?
+\end{question}
+
+\textbf{What we did.}
+\begin{itemize}
+  \item Added a CMS \textbf{neck}: a chain of 3 small MLP blocks after the ResNet-50, updated every 1, 16 and 256 steps on their accumulated gradient.
+  \item Five variants (A--E). Some also made the \textbf{backbone itself slow} (updating every 16 steps). Some scaled up the learning rate of slow parts.
+  \item A \textbf{control} with the same architecture but everything updating every step, so any gain can be traced to the multi-speed updates and not just to extra layers.
+  \item Each variant was run with and without replay. The best variant was picked on seed 0; seeds 1--5 decided.
+\end{itemize}
+
+\textbf{Results (seeds 1--5).}
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Method} & \textbf{Seen DIR@5\%} & \textbf{Forgetting} & \textbf{Seen rank-1} & \textbf{Unseen AUROC}\\
+\midrule
+Naive & 0.183 & 0.180 & 0.536 & 0.597\\
+CMS (best, no replay) & 0.180 & 0.192 & 0.530 & 0.610\\
+Replay k=5 & \textbf{0.221} & 0.071 & 0.583 & 0.600\\
+CMS ``D'' + replay & 0.215 & \textbf{0.029} & \textbf{0.625} & \textbf{0.646}\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{verdict}
+\textbf{NO-GO} on the pre-registered metric (seen DIR@5\%). CMS did not beat naive, EWC or replay.
+\end{verdict}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item On the number we had committed to, \textbf{CMS did not help}.
+  \item But looking further, \textbf{variant D + replay} (CMS blocks plus a slow backbone) looked better than replay on 5/5 seeds for forgetting, rank-1 and strangers' AUROC.
+  \item We treated this only as a \textbf{hypothesis}, for two reasons. We looked at many metrics after seeing the data, so some ``wins'' could be luck. And D changed two things at once (CMS blocks \emph{and} a slow backbone), so we couldn't tell which one helped. Experiment 6 tests it properly.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 6 --- C3b: confirming the C3 hint on fresh people}
+
+\begin{question}
+Is the C3 hint real? And if so, is it due to the CMS blocks or just to the slow backbone?
+\end{question}
+
+\textbf{What we did.} \textbf{New seeds 6--10} (people never used before). Four arms, all with replay:
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+R & plain replay\\
+ctrl+R & same architecture as CMS, everything updates every step\\
+slowbb+R & \textbf{only} a slow backbone (every 16 steps); no CMS blocks\\
+D+R & slow backbone \textbf{plus} CMS blocks (the C3 hint)\\
+\bottomrule
+\end{tabular}
+\end{center}
+Pre-registered claim: D+R beats R on forgetting, seen rank-1 \emph{and} unseen AUROC, in at least 4 of 5 seeds.
+
+\textbf{Results (seeds 6--10).}
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Arm} & \textbf{Forgetting} & \textbf{Seen rank-1} & \textbf{Unseen AUROC}\\
+\midrule
+R & 0.080 & 0.570 & 0.619\\
+ctrl+R & 0.055 & 0.580 & 0.622\\
+slowbb+R & 0.046 & 0.618 & \textbf{0.630}\\
+D+R & \textbf{0.034} & \textbf{0.626} & 0.628\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{verdict}
+\textbf{NOT CONFIRMED.} D+R beat replay on forgetting and rank-1, but the gain for strangers (unseen AUROC) did not come back (only 2/5 seeds). The C3 claim about strangers is withdrawn.
+\end{verdict}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{The checking process worked.} A result that looked good once turned out to be partly luck.
+  \item \textbf{Most of the lower forgetting is not NL.} Just changing the neck and training in full precision (ctrl+R) already lowered forgetting. We found a hidden confound: \textbf{numerical precision} (fp32 vs mixed precision) alone changes forgetting. From then on, all arms in a comparison used the same precision.
+  \item \textbf{One effect did hold up:} a slow backbone improves rank-1 on remembered people by about \textbf{+0.04} over the identical control (5/5 fresh seeds, and also in C3). This follows NL's core principle: separate slow and fast parameters.
+  \item \textbf{The CMS blocks added nothing} beyond the slow backbone.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 7 --- U1: baselines at scale on UERC}
+
+\begin{question}
+EarVN has only 115 training people. Does more data change the picture? First, how good is the standard model on UERC (917 training people)?
+\end{question}
+
+\textbf{What we did.} The same ResNet-50 recipe on UERC. Only the training length was tuned (on seed-0 validation); 4 epochs won. Results are on seeds 1--3, about 50{,}000 test photos per seed.
+
+\textbf{Results (test, seeds 1--3).}
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Setting} & \textbf{Rank-1} & \textbf{AUROC} & \textbf{DIR@5\%}\\
+\midrule
+2 gallery photos & 0.662 $\pm$ 0.010 & 0.784 & 0.370 $\pm$ 0.007\\
+5 gallery photos & 0.809 & 0.860 & 0.536\\
+\bottomrule
+\end{tabular}
+\end{center}
+cosine\_proto was again the best scorer. UERC mixes three sources; we also report per source (VGGFace2-derived ears turned out harder, rank-1 0.70 vs 0.80).
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{More training people means much better stranger rejection}: DIR@5\% 0.370 on UERC vs 0.209 on EarVN. (Different datasets, so this is indicative.)
+  \item The spread across seeds is tiny (about 0.01), so 3 seeds give reliable numbers on UERC.
+  \item This is the reference for Experiments 8--11: \textbf{rank-1 0.662, AUROC 0.784, DIR@5\% 0.370}.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 8 --- U2: the NL memory again, with 8$\times$ more people}
+
+\begin{question}
+In Experiment 2, meta-training had only 58 people. Was that the reason the NL memory failed? Re-run the same test on UERC with 459 meta-training people.
+\end{question}
+
+\textbf{What we did.} Exactly the Experiment 2 design, scaled up: the backbone is trained on 458 people, the memory is meta-trained on 459 others, and practice episodes have 32 known + 32 strangers. Decision: the meta-trained memory must beat cosine \emph{and} the control on 3/3 seeds.
+
+\textbf{Results (test, seeds 1--3, 2 gallery photos).}
+\begin{center}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Arm} & \textbf{Rank-1} & \textbf{DIR@5\%}\\
+\midrule
+cosine\_proto & \textbf{0.542} & 0.241\\
+deep memory & 0.523 & 0.236\\
+\textbf{meta-trained memory} & 0.522 & 0.236\\
+meta-trained write rule only & 0.537 & \textbf{0.246}\\
+control (no memory) & \textbf{0.542} & 0.235\\
+\bottomrule
+\end{tabular}
+\end{center}
+With 5 gallery photos, the memories were again much worse (about 0.19 vs 0.37).
+
+\begin{verdict}
+\textbf{NO-GO.} The meta-trained memory beat cosine on 0/3 seeds. Again, meta-training never improved on its starting point.
+\end{verdict}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item The failure in Experiment 2 was \textbf{not} caused by too little data. Surprise-based rejection does not beat cosine at either scale.
+  \item The write-rule-only version did learn something this time (+0.005), but the gain is smaller than the noise and disappears with 5 gallery photos.
+  \item \textbf{The key finding:} the backbone trained on 458 people gives DIR@5\% 0.241; trained on all 917 (Experiment 7) it gives 0.370. \textbf{Doubling the training people is worth +0.13. No memory changes the result by more than 0.01.} What matters is the quality of the embedding, not the scorer on top.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 9 --- U3: does the slow backbone help at scale?}
+
+\begin{question}
+The one NL effect that survived on EarVN was ``a slow backbone helps remember people'' (+0.04 rank-1). Does it hold on UERC?
+\end{question}
+
+\textbf{What we did.} Continual learning on UERC: 917 people in \textbf{10 groups of about 92}, 870 steps per group, all arms in full precision. The slow-backbone setting was copied unchanged from EarVN (no re-tuning, since this is a replication). Decision: slow backbone + replay must beat the identical control + replay on rank-1 in 3/3 seeds.
+
+\textbf{Results (test, seeds 1--3).}
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Arm} & \textbf{Seen rank-1} & \textbf{Forgetting} & \textbf{Seen DIR@5\%} & \textbf{Unseen AUROC}\\
+\midrule
+Joint & 0.899 & --- & 0.764 & 0.774\\
+Naive & 0.595 & 0.304 & 0.283 & 0.652\\
+Replay & 0.720 & 0.124 & 0.423 & 0.682\\
+\textbf{Control + replay} & \textbf{0.728} & \textbf{0.116} & 0.421 & \textbf{0.685}\\
+Slow backbone + replay & 0.713 & 0.138 & 0.404 & 0.669\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{verdict}
+\textbf{NOT CONFIRMED.} The slow backbone was worse on 0/3 seeds (rank-1 $-$0.015), and worse on every other metric too. The EarVN effect reverses at scale.
+\end{verdict}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item On EarVN (small groups, short training) the slow backbone acted like a \textbf{brake} that stopped a small model from overfitting. That helped there.
+  \item On UERC the backbone has much more to learn. The brake now costs more learning than it saves in memory.
+  \item \textbf{Replay is very effective at scale} (rank-1 0.72 vs 0.60 for naive), but there is still a big gap to joint training (0.90).
+  \item After this, none of the NL mechanisms tested so far gave a robust improvement.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 10 --- U4: NL's M3 optimizer vs AdamW}
+
+\begin{question}
+NL's third family of ideas is optimizers. M3 is an optimizer with a fast and a slow momentum, and it is the only idea the NL paper tests on images. Does it train a better ear model than the standard AdamW?
+\end{question}
+
+\textbf{What we did.} The UERC baseline from Experiment 7, changing only the optimizer:
+\begin{itemize}
+  \item \textbf{AdamW} (the standard);
+  \item \textbf{M3} (NL);
+  \item \textbf{M3 without its slow momentum} (the control, removing the NL part).
+\end{itemize}
+The learning rate was tuned for each on seed-0 validation. The paper gives no hyperparameters, so we had to choose them.
+
+\textbf{Results (test, seeds 1--3).}
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Optimizer} & \textbf{Rank-1} & \textbf{AUROC} & \textbf{DIR@5\%}\\
+\midrule
+\textbf{AdamW} & \textbf{0.662} & \textbf{0.784} & \textbf{0.370}\\
+M3 (NL) & 0.599 & 0.748 & 0.301\\
+M3 without the slow momentum & 0.638 & 0.768 & 0.331\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{verdict}
+\textbf{NO-GO.} M3 was worse than AdamW on 3 of 3 seeds ($-$0.069 DIR@5\%), and worse than its own control.
+\end{verdict}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item M3 trains a clearly worse ear model.
+  \item \textbf{The NL part itself is what hurts}: removing the slow momentum makes M3 better.
+  \item M3 was also less stable (it diverged at a higher learning rate) and about 2.7$\times$ slower per step.
+  \item \textbf{Fair caveat:} the training length was tuned for AdamW. M3 might do better with a longer schedule. It is not a drop-in improvement, though.
+  \item \textbf{A lesson in checking:} our report script first printed ``GO'' because of a bug that swapped two arms. We caught it by comparing the verdict with the table and the raw files.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{Experiment 11 --- Option B: NL's multi-speed memory inside a Vision Transformer}
+
+\begin{question}
+In Experiments 5--6 and 9, CMS was a small add-on to a CNN. The NL paper puts multi-speed MLPs \emph{inside every Transformer block}, starting from a pretrained model. Does the paper's own recommended design work for ears?
+\end{question}
+
+\textbf{What we did.}
+\begin{itemize}
+  \item Backbone: an ImageNet-pretrained \textbf{DeiT-S Vision Transformer} (22M parameters).
+  \item \textbf{CMS-ViT}: every block's MLP became \textbf{3 copies} of the pretrained MLP, updating every 1, 16 and 256 steps, mixed by learnable weights. At the start it computes exactly the plain ViT, so \textbf{the plain ViT is a perfect control}: the only difference is the multi-speed updates.
+  \item \textbf{B0:} tune the plain ViT on validation (chosen: lr 3e-5, 8 epochs). CMS-ViT got no extra tuning.
+  \item \textbf{B1:} normal training; decision on DIR@5\%, 3/3 seeds.
+  \item \textbf{B2:} continual learning (10 groups, both with replay); decision on final seen rank-1, 3/3 seeds.
+\end{itemize}
+
+\textbf{B1 results: normal training (test, seeds 1--3).}
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Model} & \textbf{Rank-1} & \textbf{AUROC} & \textbf{DIR@5\%}\\
+\midrule
+ResNet-50 (Experiment 7) & 0.662 & 0.784 & 0.370\\
+\textbf{Plain ViT} & \textbf{0.721} & \textbf{0.808} & \textbf{0.433}\\
+CMS-ViT (NL) & 0.687 & 0.798 & 0.408\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{verdict}
+\textbf{B1: NO-GO.} CMS-ViT was worse than the plain ViT on 3 of 3 seeds ($-$0.025 DIR@5\%).
+\end{verdict}
+
+\textbf{B2 results: continual learning (test, seeds 1--3).}
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Model} & \textbf{Seen rank-1} & \textbf{Forgetting} & \textbf{Unseen AUROC} & \textbf{Unseen DIR@5\%}\\
+\midrule
+Plain ViT + replay & 0.732 & \textbf{0.107} & \textbf{0.716} & \textbf{0.240}\\
+CMS-ViT + replay & \textbf{0.743} & 0.120 & 0.698 & 0.209\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{verdict}
+\textbf{B2: GO} on the pre-registered metric. CMS-ViT ended higher on 3 of 3 seeds (+0.012 rank-1).
+\end{verdict}
+
+\begin{means}
+\begin{itemize}[leftmargin=1.2em]
+  \item For normal recognition, \textbf{the paper's own design makes the model worse.}
+  \item In continual learning there is a \textbf{small, consistent gain}, the only pre-registered positive NL result in the project. But:
+  \begin{itemize}
+    \item it is small (+0.012), and 3 of 3 seeds can happen by luck 1 time in 8;
+    \item it \textbf{does not work the way NL claims}. NL says CMS reduces forgetting; here forgetting got \emph{worse} (0.120 vs 0.107);
+    \item the gain comes from \textbf{learning each new group better} (0.851 vs 0.828 right after learning it). The extra copies act as extra capacity and plasticity, not as a better long-term memory;
+    \item it makes \textbf{stranger rejection worse} (unseen AUROC 0.698 vs 0.716), which matters for a biometric system.
+  \end{itemize}
+  \item \textbf{Side result: the plain ViT is the best ear model in the project} (DIR@5\% 0.433 vs 0.370 for ResNet-50). This comparison is not perfectly controlled: each model has its own tuned recipe and precision.
+\end{itemize}
+\end{means}
+
+% =====================================================================
+\section{The big picture}
+
+\subsection{All verdicts in one table}
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}L{2.4cm}L{4.3cm}L{2.4cm}X@{}}
+\toprule
+\textbf{Experiment} & \textbf{NL idea tested} & \textbf{Verdict} & \textbf{One-line meaning}\\
+\midrule
+2 (Phase 3) & surprise memory, EarVN & NO-GO & no better than cosine; meta-training learned nothing\\
+5 (C3) & CMS neck, EarVN & NO-GO & no gain on the main metric; one hint\\
+6 (C3b) & confirm the hint & NOT CONFIRMED & stranger gain was luck; slow backbone +0.04 rank-1\\
+8 (U2) & surprise memory, UERC & NO-GO & not a data problem; embedding quality dominates\\
+9 (U3) & slow backbone, UERC & NOT CONFIRMED & the EarVN effect reverses at scale\\
+10 (U4) & M3 optimizer, UERC & NO-GO & worse than AdamW; the NL part hurts\\
+11 (B1) & CMS inside a ViT, static & NO-GO & worse than the plain ViT\\
+11 (B2) & CMS inside a ViT, continual & GO (small) & +0.012 rank-1, via plasticity; more forgetting, worse for strangers\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{What we learned}
+\begin{enumerate}
+  \item \textbf{NL does not improve open-set ear recognition} in any form we tested: memories, multi-speed architectures, or NL's optimizer, on small data or at scale.
+  \item \textbf{What does matter:}
+  \begin{itemize}
+    \item the number of training people: 458 $\to$ 917 people is worth +0.13 DIR@5\%, more than any method;
+    \item replay of old photos when learning new people;
+    \item a pretrained Vision Transformer backbone.
+  \end{itemize}
+  \item \textbf{Effects found on small datasets can disappear or reverse at scale} (the slow backbone).
+  \item \textbf{Strict checking caught false positives}: a lucky C3 result, a confound from numerical precision, and a bug in a report script. Pre-registration and controls were worth the effort.
+  \item \textbf{The thesis story is a careful negative result}: a clean, pre-registered test of Nested Learning for open-set ear recognition, plus a strong, reproducible baseline (the plain ViT).
+\end{enumerate}
+
+\begin{careful}[If someone asks ``so did NL fail?'']
+A fair answer: \emph{NL's mechanisms did not help this task under fair comparisons.} That is different from ``NL is wrong''. NL was shown mostly on language and long data streams. Ear recognition has small per-person data, a strong need to generalise to strangers, and short training runs. Our results say that, for this kind of problem, NL's extra levels add complexity without adding accuracy.
+\end{careful}
+
+\end{document}
