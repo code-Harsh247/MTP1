@@ -1,0 +1,245 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usetheme[progressbar=frametitle,numbering=fraction]{metropolis}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+
+\definecolor{good}{HTML}{2E7D32}
+\definecolor{bad}{HTML}{C62828}
+\definecolor{accent}{HTML}{1F5FA8}
+\setbeamercolor{frametitle}{bg=accent!85!black}
+\setbeamercolor{progress bar}{fg=accent!60}
+\setbeamercolor{alerted text}{fg=bad}
+\newcommand{\up}[1]{\textcolor{good}{\textbf{#1}}}
+\newcommand{\down}[1]{\textcolor{bad}{\textbf{#1}}}
+\newcommand{\takeaway}[1]{\vfill\begin{center}\colorbox{accent!10}{\parbox{0.92\textwidth}{\centering\vspace{3pt}#1\vspace{3pt}}}\end{center}}
+\renewcommand{\arraystretch}{1.15}
+
+\title{Nested Learning for Open-Set Ear Recognition}
+\subtitle{An experimental study}
+\author{Harsh Chattar}
+\date{October 2026}
+
+\begin{document}
+
+% ---------------------------------------------------------------- 1
+\maketitle
+
+% ---------------------------------------------------------------- 2
+\begin{frame}{The question}
+\textbf{Task: open-set ear recognition}
+\begin{itemize}
+  \item Enroll each person with only \textbf{2 ear images}
+  \item For a new image: \textbf{name the right person}, or \textbf{reject} it as unknown
+  \item Test people are \textbf{never seen in training}
+\end{itemize}
+
+\bigskip
+\textbf{Research question}
+\begin{itemize}
+  \item Can ideas from \emph{Nested Learning} (NeurIPS 2025) do this better than a standard model?
+  \item Can they help the model \textbf{learn new people over time} without forgetting old ones?
+\end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------- 3
+\begin{frame}{Nested Learning in one slide}
+\textbf{Behrouz et al., Google, NeurIPS 2025}
+\begin{itemize}
+  \item A model is seen as several learning processes \textbf{nested inside each other}
+  \item Each one updates at \textbf{its own speed}: some every step, some rarely
+  \item Claimed benefit: better memory and \textbf{continual learning}
+\end{itemize}
+
+\medskip
+\textbf{The three NL ideas we tested}
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{@{}lX@{}}
+\toprule
+\textbf{1. Memory} & A small network that learns at test time. ``Surprise'' = how badly it predicts a new input.\\
+\textbf{2. Multi-speed learning (CMS)} & Some parts of the network update every step, others every 16 or 256 steps.\\
+\textbf{3. M3 optimizer} & An optimizer with a fast and a slow momentum.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+\end{frame}
+
+% ---------------------------------------------------------------- 4
+\begin{frame}{How we tested}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Data}
+\begin{itemize}
+  \item EarVN1.0: 164 people (small)
+  \item UERC 2023: 1{,}310 people (large)
+\end{itemize}
+
+\medskip
+\textbf{Baseline}
+\begin{itemize}
+  \item ResNet-50 + ArcFace
+  \item Cosine similarity to each person's average gallery embedding
+\end{itemize}
+
+\medskip
+\textbf{Main metric: DIR@5\%}\\
+\small Share of enrolled people accepted \emph{and} correctly named, when 5\% of unknown people get in.
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Fair comparison}
+\begin{itemize}
+  \item Settings chosen on validation people only
+  \item Decision rule \textbf{fixed before} each run
+  \item Each NL method vs.\ the \textbf{same model without the NL part}
+  \item Repeated on 3--5 random splits
+\end{itemize}
+
+\medskip
+\textbf{Baseline on UERC}
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Rank-1 & 0.662\\
+DIR@5\% & 0.370\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------- 5
+\begin{frame}{Idea 1: Memory --- no gain}
+\textbf{Method}
+\begin{itemize}
+  \item Each enrolled person gets a small memory, trained on their 2 gallery embeddings
+  \item A test image is matched to the memory with the \textbf{lowest surprise}
+  \item Also tried \textbf{meta-training} the memory on separate practice people
+\end{itemize}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{DIR@5\%} & \textbf{EarVN} & \textbf{UERC}\\
+\midrule
+Cosine (baseline) & \textbf{0.122} & \textbf{0.241}\\
+Memory & 0.116 & 0.236\\
+Meta-trained memory & 0.116 & 0.236\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\takeaway{Never better than cosine. Meta-training never improved the memory, even with 8$\times$ more people.}
+\end{frame}
+
+% ---------------------------------------------------------------- 6
+\begin{frame}{Idea 2: Multi-speed learning --- small gain, gone at scale}
+\textbf{Setting: continual learning}
+\begin{itemize}
+  \item The model learns people in groups (EarVN: 5 groups, UERC: 10 groups)
+  \item Replay of old images in both arms (the best standard method)
+  \item NL version: backbone updates every 16 steps \textbf{vs.} the same model updating every step
+\end{itemize}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Rank-1 on learned people} & \textbf{Normal} & \textbf{Multi-speed} & \textbf{Splits better}\\
+\midrule
+EarVN (small) & 0.580 & 0.618 & \up{5 / 5}\\
+UERC (large)  & 0.728 & 0.713 & \down{0 / 3}\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\takeaway{The small-data gain reverses at scale. Extra CMS blocks added nothing.}
+\end{frame}
+
+% ---------------------------------------------------------------- 7
+\begin{frame}{Idea 3: M3 optimizer --- worse than AdamW}
+\textbf{Method:} train the UERC baseline with M3 instead of AdamW; everything else unchanged.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Optimizer} & \textbf{Rank-1} & \textbf{DIR@5\%}\\
+\midrule
+AdamW (baseline) & \textbf{0.662} & \textbf{0.370}\\
+M3 (NL) & 0.599 & 0.301\\
+M3 without its slow momentum & 0.638 & 0.331\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\takeaway{M3 is worse on 3 / 3 splits. Removing its NL part makes it better. It is also 2.7$\times$ slower.}
+\end{frame}
+
+% ---------------------------------------------------------------- 8
+\begin{frame}{The paper's own design --- also no real gain}
+\textbf{Method:} pretrained Vision Transformer (DeiT-S). Each MLP becomes 3 copies that update every 1, 16 and 256 steps.
+
+\begin{columns}[T]
+\begin{column}{0.40\textwidth}
+\centering\textbf{Normal training (UERC)}\\[4pt]
+\begin{tabular}{lc}
+\toprule
+ & \textbf{DIR@5\%}\\
+\midrule
+ViT (baseline) & \textbf{0.433}\\
+ViT + CMS & 0.408\\
+\bottomrule
+\end{tabular}\\[4pt]
+\small Worse on \down{3 / 3} splits
+\end{column}
+\begin{column}{0.58\textwidth}
+\centering\textbf{Continual learning (UERC)}\\[4pt]
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{ViT} & \textbf{ViT + CMS}\\
+\midrule
+Rank-1 & 0.732 & 0.743\\
+Forgetting $\downarrow$ & \textbf{0.107} & 0.120\\
+Rejection (AUROC) & \textbf{0.716} & 0.698\\
+\bottomrule
+\end{tabular}\\[4pt]
+\small Tiny rank-1 gain, but \down{more forgetting} and \down{worse rejection}
+\end{column}
+\end{columns}
+
+\takeaway{CMS does not reduce forgetting, which is what NL claims it should do.}
+\end{frame}
+
+% ---------------------------------------------------------------- 9
+\begin{frame}{Conclusion}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\textbf{Every NL idea, tested fairly}\\[4pt]
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{NL idea} & \textbf{Small data} & \textbf{Large data}\\
+\midrule
+Memory & no gain & no gain\\
+Multi-speed (ResNet) & small gain & \down{worse}\\
+M3 optimizer & --- & \down{worse}\\
+CMS inside ViT & --- & \down{worse}\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.44\textwidth}
+\textbf{What actually helped}
+\begin{itemize}
+  \item More training people:\\ 458 $\to$ 917 people, \up{+0.13} DIR@5\%
+  \item Replay of old images in continual learning
+  \item A ViT backbone:\\ 0.370 $\to$ \up{0.433} DIR@5\%
+\end{itemize}
+\end{column}
+\end{columns}
+
+\takeaway{\textbf{Nested Learning does not improve open-set ear recognition.}\\ Next step: thesis write-up.}
+\end{frame}
+
+\end{document}
