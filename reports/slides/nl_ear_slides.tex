@@ -27,6 +27,12 @@
   box/.style={draw=accent,fill=soft,rounded corners=3pt,align=center,font=\small,minimum height=0.9cm,inner sep=4pt},
   arr/.style={-{Stealth[length=2.2mm]},thick,accent!80!black},
 }
+\pgfplotsset{
+  smallbars/.style={xbar, bar shift=0pt, height=3.4cm, bar width=8pt, enlarge y limits=0.25,
+    yticklabel style={font=\scriptsize}, xticklabel style={font=\scriptsize},
+    nodes near coords, nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=3,fixed zerofill},
+    axis lines*=left},
+}
 
 \title{Nested Learning for Open-Set Ear Recognition}
 \subtitle{An experimental study}
@@ -39,15 +45,15 @@
 \maketitle
 
 % ---------------------------------------------------------------- 2
-\begin{frame}{The question}
-\textbf{Task: open-set ear recognition}
+\begin{frame}{The task}
+\textbf{Open-set ear recognition}
 \begin{itemize}
   \item Enroll each person with only \textbf{2 ear images}
   \item For a new image: \textbf{name the right person}, or \textbf{reject} it as unknown
   \item Test people are \textbf{never seen in training}
 \end{itemize}
 
-\medskip
+\bigskip
 \begin{center}
 \begin{tikzpicture}[node distance=0.45cm]
   \node[box] (img) {New ear\\image};
@@ -62,19 +68,54 @@
 \end{tikzpicture}
 \end{center}
 
-\medskip
-\textbf{Research question:} can ideas from \emph{Nested Learning} (NeurIPS 2025) do this better than a standard model, and help it \textbf{learn new people over time} without forgetting?
+\takeaway{Baseline: ResNet-50 + ArcFace, cosine similarity to each person's average gallery embedding.}
 \end{frame}
 
 % ---------------------------------------------------------------- 3
-\begin{frame}{Nested Learning in one slide}
+\begin{frame}{Two problems}
+\begin{columns}[T]
+\begin{column}{0.49\textwidth}
+\textbf{Problem 1: Forgetting}\\[2pt]
+\small New people are enrolled over time. Learning them group by group makes the model forget earlier people.\\[4pt]
+\centering
+\begin{tikzpicture}
+\begin{axis}[smallbars, width=5.6cm, xmin=0.4, xmax=1.0,
+  symbolic y coords={Group by group,With replay,All at once},
+  ytick={Group by group,With replay,All at once},
+  xlabel={\scriptsize Rank-1 on learned people (UERC)}]
+  \addplot[fill=bad!60,draw=bad] coordinates {(0.595,Group by group)};
+  \addplot[fill=orange!60,draw=orange] coordinates {(0.720,With replay)};
+  \addplot[fill=good!60,draw=good] coordinates {(0.899,All at once)};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.49\textwidth}
+\textbf{Problem 2: Rejecting unknown people}\\[2pt]
+\small Even the baseline accepts and correctly names only \textbf{37\%} of enrolled people when 5\% of unknown people get in.\\[4pt]
+\centering
+\begin{tikzpicture}
+\begin{axis}[smallbars, width=5.6cm, xmin=0, xmax=1.0,
+  symbolic y coords={UERC,EarVN},
+  ytick={UERC,EarVN},
+  xlabel={\scriptsize DIR@5\% of the baseline (higher is better)}]
+  \addplot[fill=accent!60,draw=accent] coordinates {(0.209,EarVN) (0.370,UERC)};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+
+\takeaway{Can Nested Learning (NeurIPS 2025) solve these two problems?}
+\end{frame}
+
+% ---------------------------------------------------------------- 4
+\begin{frame}{Why Nested Learning?}
 \begin{columns}[T]
 \begin{column}{0.45\textwidth}
 \textbf{Behrouz et al., Google, NeurIPS 2025}
 \begin{itemize}
   \item A model is several learning processes \textbf{nested inside each other}
   \item Each one updates at \textbf{its own speed}
-  \item Claimed benefit: better memory and \textbf{continual learning}
+  \item Claimed benefit: better memory and \textbf{less forgetting}
 \end{itemize}
 \end{column}
 \begin{column}{0.53\textwidth}
@@ -95,18 +136,19 @@
 \end{columns}
 
 \medskip
-\textbf{The three NL ideas we tested}\\[2pt]
-\small
+\footnotesize
 \begin{tabularx}{\textwidth}{@{}lX@{}}
 \toprule
-\textbf{1. Memory} & A small network that learns at test time. ``Surprise'' = how badly it predicts a new input.\\
-\textbf{2. Multi-speed learning (CMS)} & Some parts of the network update every step, others every 16 or 256 steps.\\
-\textbf{3. M3 optimizer} & An optimizer with a fast and a slow momentum.\\
+\textbf{Problem} & \textbf{NL idea we tested}\\
+\midrule
+\textbf{1. Forgetting} & \textbf{Multi-speed learning (CMS):} some parts update every step, others every 16 or 256 steps\\
+\textbf{2. Rejecting unknowns} & \textbf{Memory:} a small network whose ``surprise'' should be high for unknown people\\
+ & \textbf{A better model:} the M3 optimizer (fast + slow momentum) and CMS inside a ViT\\
 \bottomrule
 \end{tabularx}
 \end{frame}
 
-% ---------------------------------------------------------------- 4
+% ---------------------------------------------------------------- 5
 \begin{frame}{How we tested}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
@@ -118,19 +160,14 @@
 \end{itemize}
 
 \medskip
-\textbf{Baseline}
+\textbf{Metrics}
 \begin{itemize}
-  \item ResNet-50 + ArcFace
-  \item Cosine similarity to each person's average gallery embedding
-  \item UERC: DIR@5\% 0.370
+  \item \textbf{Rank-1:} share of enrolled people named correctly
+  \item \textbf{DIR@5\%:} share of enrolled people accepted \textbf{and} correctly named, when 5\% of unknown people get in
+  \item \textbf{Forgetting:} drop in accuracy on earlier groups
 \end{itemize}
-
 \end{column}
 \begin{column}{0.50\textwidth}
-\textbf{Main metric: DIR@5\%}\\[2pt]
-\small Set the threshold so that \textbf{5\% of unknown people} get in. DIR@5\% = share of enrolled people that are accepted \textbf{and} correctly named.
-
-\medskip
 \centering
 \begin{tikzpicture}[x=4.6cm,y=0.45cm]
   \draw[-{Stealth},gray] (0,0) -- (1.05,0) node[right,font=\scriptsize]{score};
@@ -144,7 +181,7 @@
   \node[font=\scriptsize,bad] at (0.52,2.7) {$\leftarrow$ rejected};
 \end{tikzpicture}
 
-\raggedright
+\raggedright\small
 \textbf{Fair comparison}
 \begin{itemize}
   \item Decision rule \textbf{fixed before} each run
@@ -155,11 +192,44 @@
 \end{columns}
 \end{frame}
 
-% ---------------------------------------------------------------- 5
-\begin{frame}{Idea 1: Memory --- no gain}
+% ---------------------------------------------------------------- 6
+\begin{frame}{Problem 1: Can NL reduce forgetting?}
+\small The model learns people in groups, with replay of old images in every version.
+
+\begin{columns}[T]
+\begin{column}{0.50\textwidth}
+\centering\textbf{Multi-speed backbone (ResNet-50)}\\[2pt]
+{\scriptsize backbone updates every 16 steps vs.\ every step}\\[4pt]
+\begin{tabular}{lccc}
+\toprule
+\textbf{Rank-1} & \textbf{Normal} & \textbf{NL} & \textbf{Better}\\
+\midrule
+EarVN (small) & 0.580 & 0.618 & \up{5 / 5}\\
+UERC (large)  & 0.728 & 0.713 & \down{0 / 3}\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering\textbf{CMS inside a ViT (the paper's design)}\\[2pt]
+{\scriptsize each MLP = 3 copies, updating every 1 / 16 / 256 steps}\\[4pt]
+\begin{tabular}{lcc}
+\toprule
+\textbf{UERC} & \textbf{ViT} & \textbf{ViT + CMS}\\
+\midrule
+Rank-1 & 0.732 & 0.743\\
+Forgetting $\downarrow$ & \textbf{0.107} & \down{0.120}\\
+\bottomrule
+\end{tabular}
+\end{column}
+\end{columns}
+
+\takeaway{The small-data gain reverses at scale. Inside the ViT, CMS \textbf{increases} forgetting --- the opposite of NL's claim.}
+\end{frame}
+
+% ---------------------------------------------------------------- 7
+\begin{frame}{Problem 2a: Can an NL memory reject unknown people?}
 \begin{columns}[T]
 \begin{column}{0.52\textwidth}
-\textbf{Method}\\[3pt]
 \centering
 \begin{tikzpicture}[node distance=0.45cm]
   \node[box] (z) {Embedding\\of test image};
@@ -192,115 +262,42 @@ Meta-trained & 0.116 & 0.236\\
 \takeaway{Never better than cosine. Meta-training never improved the memory, even with 8$\times$ more people.}
 \end{frame}
 
-% ---------------------------------------------------------------- 6
-\begin{frame}{Idea 2: Multi-speed learning --- small gain, gone at scale}
-\textbf{Setting: continual learning.} The model learns people in groups, with replay of old images in both arms.\\
-NL version: backbone updates every 16 steps \textbf{vs.} the same model updating every step.
+% ---------------------------------------------------------------- 8
+\begin{frame}{Problem 2b: Can NL train a better model?}
+\small A better embedding would also reject unknown people better. We tried two NL changes on UERC.
 
-\begin{columns}[c]
-\begin{column}{0.46\textwidth}
-\centering
-\begin{tikzpicture}[node distance=0.12cm]
-  \foreach \i/\c in {1/accent!20,2/accent!35,3/accent!50,4/accent!65,5/accent!80}{
-    \node[draw=accent,fill=\c,minimum width=0.7cm,minimum height=0.6cm,font=\scriptsize] (g\i) at (\i*0.85,0) {G\i};
-  }
-  \draw[arr] (0.45,-0.6) -- (4.7,-0.6) node[below,midway,font=\scriptsize,yshift=-1pt]{learned one group at a time};
-\end{tikzpicture}\\[2pt]
-{\scriptsize EarVN: 5 groups \quad UERC: 10 groups}
-\end{column}
-\begin{column}{0.52\textwidth}
-\centering
-\small
-\begin{tabular}{lccc}
-\toprule
-\textbf{Rank-1} & \textbf{Normal} & \textbf{Multi-speed} & \textbf{Better}\\
-\midrule
-EarVN (small) & 0.580 & 0.618 & \up{5 / 5}\\
-UERC (large)  & 0.728 & 0.713 & \down{0 / 3}\\
-\bottomrule
-\end{tabular}
-\end{column}
-\end{columns}
-
-\takeaway{The small-data gain reverses at scale. Extra CMS blocks added nothing.}
-\end{frame}
-
-% ---------------------------------------------------------------- 7
-\begin{frame}{Idea 3: M3 optimizer --- worse than AdamW}
-\textbf{Method:} train the UERC baseline with M3 instead of AdamW; everything else unchanged.
-
-\begin{columns}[c]
-\begin{column}{0.48\textwidth}
-\centering
+\begin{columns}[T]
+\begin{column}{0.49\textwidth}
+\centering\textbf{M3 optimizer vs.\ AdamW}\\[2pt]
 \begin{tikzpicture}
-\begin{axis}[
-  xbar, bar shift=0pt, width=5.0cm, height=3.6cm, xmin=0.25, xmax=0.40,
+\begin{axis}[smallbars, width=5.4cm, xmin=0.25, xmax=0.46,
   symbolic y coords={M3 without NL part,M3,AdamW},
-  ytick={M3 without NL part,M3,AdamW}, yticklabel style={font=\scriptsize}, xticklabel style={font=\scriptsize},
-  xlabel={\scriptsize DIR@5\% (UERC)}, bar width=9pt, enlarge y limits=0.25,
-  nodes near coords, nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=3,fixed zerofill}, axis lines*=left]
+  ytick={M3 without NL part,M3,AdamW},
+  xlabel={\scriptsize DIR@5\%}]
   \addplot[fill=accent!60,draw=accent] coordinates {(0.370,AdamW)};
   \addplot[fill=bad!60,draw=bad] coordinates {(0.301,M3) (0.331,M3 without NL part)};
 \end{axis}
 \end{tikzpicture}
 \end{column}
-\begin{column}{0.48\textwidth}
-\small
-\begin{tabular}{lcc}
-\toprule
-\textbf{Optimizer} & \textbf{Rank-1} & \textbf{DIR@5\%}\\
-\midrule
-AdamW & \textbf{0.662} & \textbf{0.370}\\
-M3 (NL) & 0.599 & 0.301\\
-M3 without NL part & 0.638 & 0.331\\
-\bottomrule
-\end{tabular}
-\end{column}
-\end{columns}
-
-\takeaway{M3 is worse on 3 / 3 splits. Removing its NL part makes it better. It is also 2.7$\times$ slower.}
-\end{frame}
-
-% ---------------------------------------------------------------- 8
-\begin{frame}{The paper's own design --- also no real gain}
-\begin{columns}[c]
-\begin{column}{0.38\textwidth}
-\textbf{Pretrained ViT (DeiT-S):} each MLP becomes 3 copies updating at different speeds.\\[4pt]
-\centering
-\begin{tikzpicture}[node distance=0.12cm]
-  \node[box,minimum width=2.6cm] (att) {Attention};
-  \node[box,below=0.35cm of att,draw=bad,fill=bad!8,minimum width=0.75cm,font=\scriptsize] (c2) {MLP\\16};
-  \node[box,left=of c2,draw=bad,fill=bad!8,minimum width=0.75cm,font=\scriptsize] (c1) {MLP\\1};
-  \node[box,right=of c2,draw=bad,fill=bad!8,minimum width=0.75cm,font=\scriptsize] (c3) {MLP\\256};
-  \draw[arr] (att) -- (c2);
-  \draw[arr] (att.south) -- (c1.north); \draw[arr] (att.south) -- (c3.north);
-  \node[below=0.12cm of c2,font=\scriptsize] {update every 1 / 16 / 256 steps};
+\begin{column}{0.49\textwidth}
+\centering\textbf{CMS inside a ViT vs.\ plain ViT}\\[2pt]
+\begin{tikzpicture}
+\begin{axis}[smallbars, width=5.4cm, xmin=0.25, xmax=0.46,
+  symbolic y coords={ViT + CMS,ViT},
+  ytick={ViT + CMS,ViT},
+  xlabel={\scriptsize DIR@5\%}]
+  \addplot[fill=accent!60,draw=accent] coordinates {(0.433,ViT)};
+  \addplot[fill=bad!60,draw=bad] coordinates {(0.408,ViT + CMS)};
+\end{axis}
 \end{tikzpicture}
 \end{column}
-\begin{column}{0.60\textwidth}
-\small
-\textbf{Normal training (UERC):} DIR@5\% ViT \textbf{0.433} vs.\ ViT + CMS 0.408, worse on \down{3 / 3}
-
-\medskip
-\textbf{Continual learning (UERC):}\\[3pt]
-\centering
-\begin{tabular}{lcc}
-\toprule
- & \textbf{ViT} & \textbf{ViT + CMS}\\
-\midrule
-Rank-1 & 0.732 & 0.743\\
-Forgetting $\downarrow$ & \textbf{0.107} & 0.120\\
-Rejection (AUROC) & \textbf{0.716} & 0.698\\
-\bottomrule
-\end{tabular}
-\end{column}
 \end{columns}
 
-\takeaway{Tiny rank-1 gain, but \down{more forgetting} and \down{worse rejection}. CMS does not do what NL claims.}
+\takeaway{Both NL versions are worse on 3 / 3 splits. Removing M3's NL part makes it \textbf{better}.}
 \end{frame}
 
 % ---------------------------------------------------------------- 9
-\begin{frame}{Conclusion}
+\begin{frame}{What actually helped}
 \begin{columns}[c]
 \begin{column}{0.60\textwidth}
 \centering
@@ -308,7 +305,8 @@ Rejection (AUROC) & \textbf{0.716} & 0.698\\
 \begin{axis}[
   xbar, bar shift=0pt, width=7.4cm, height=5.4cm, xmin=-0.14, xmax=0.19,
   symbolic y coords={ViT backbone,More training people,M3 optimizer,CMS inside ViT,Multi-speed backbone,Memory},
-  ytick={ViT backbone,More training people,M3 optimizer,CMS inside ViT,Multi-speed backbone,Memory}, yticklabel style={font=\scriptsize}, xticklabel style={font=\scriptsize,/pgf/number format/fixed},
+  ytick={ViT backbone,More training people,M3 optimizer,CMS inside ViT,Multi-speed backbone,Memory},
+  yticklabel style={font=\scriptsize}, xticklabel style={font=\scriptsize,/pgf/number format/fixed},
   xlabel={\scriptsize Change in DIR@5\% vs.\ its baseline (UERC)}, bar width=8pt, enlarge y limits=0.12,
   nodes near coords, nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=3,showpos},
   axis lines*=left, extra x ticks={0}, extra x tick style={grid=major,grid style={black}}, extra x tick labels={}]
@@ -318,20 +316,41 @@ Rejection (AUROC) & \textbf{0.716} & 0.698\\
 \end{tikzpicture}
 \end{column}
 \begin{column}{0.38\textwidth}
-\textcolor{bad}{\textbf{Red: Nested Learning ideas}}\\
+\textcolor{bad}{\textbf{Red: Nested Learning}}\\
 All at or below their baseline.
 
 \medskip
-\textcolor{good}{\textbf{Green: what actually helped}}
+\textcolor{good}{\textbf{Green: what helped}}
 \begin{itemize}
-  \item 458 $\to$ 917 training people
-  \item ResNet-50 $\to$ ViT backbone
-  \item (plus replay in continual learning)
+  \item \textbf{Problem 1:} replay\\ rank-1 0.60 $\to$ 0.72
+  \item \textbf{Problem 2:} more training people (458 $\to$ 917)
+  \item \textbf{Problem 2:} a ViT backbone instead of ResNet-50
 \end{itemize}
 \end{column}
 \end{columns}
+\end{frame}
 
-\takeaway{\textbf{Nested Learning does not improve open-set ear recognition.} Next step: thesis write-up.}
+% ---------------------------------------------------------------- 10
+\begin{frame}{Conclusion}
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Problem} & \textbf{Nested Learning} & \textbf{What helped}\\
+\midrule
+1. Forgetting & \down{no robust gain} (more forgetting in the ViT) & replay\\
+2. Rejecting unknowns & \down{no gain} (memory, M3, CMS-ViT) & more data, ViT backbone\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\bigskip
+\begin{itemize}
+  \item Every NL idea was tested with a rule fixed in advance, against the same model without NL
+  \item Effects seen on small data did \textbf{not} hold at scale
+\end{itemize}
+
+\takeaway{\textbf{Nested Learning does not solve either problem for open-set ear recognition.}\\ Next step: thesis write-up.}
 \end{frame}
 
 \end{document}
