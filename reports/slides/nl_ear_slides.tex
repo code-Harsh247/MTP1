@@ -297,40 +297,6 @@ Meta-trained & 0.116 & 0.236\\
 \end{frame}
 
 % ---------------------------------------------------------------- 9
-\begin{frame}{What actually helped}
-\begin{columns}[c]
-\begin{column}{0.60\textwidth}
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-  xbar, bar shift=0pt, width=7.4cm, height=5.4cm, xmin=-0.14, xmax=0.19,
-  symbolic y coords={ViT backbone,More training people,M3 optimizer,CMS inside ViT,Multi-speed backbone,Memory},
-  ytick={ViT backbone,More training people,M3 optimizer,CMS inside ViT,Multi-speed backbone,Memory},
-  yticklabel style={font=\scriptsize}, xticklabel style={font=\scriptsize,/pgf/number format/fixed},
-  xlabel={\scriptsize Change in DIR@5\% vs.\ its baseline (UERC)}, bar width=8pt, enlarge y limits=0.12,
-  nodes near coords, nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=3,showpos},
-  axis lines*=left, extra x ticks={0}, extra x tick style={grid=major,grid style={black}}, extra x tick labels={}]
-  \addplot[fill=bad!60,draw=bad] coordinates {(-0.005,Memory) (-0.017,Multi-speed backbone) (-0.025,CMS inside ViT) (-0.069,M3 optimizer)};
-  \addplot[fill=good!60,draw=good] coordinates {(0.129,More training people) (0.063,ViT backbone)};
-\end{axis}
-\end{tikzpicture}
-\end{column}
-\begin{column}{0.38\textwidth}
-\textcolor{bad}{\textbf{Red: Nested Learning}}\\
-All at or below their baseline.
-
-\medskip
-\textcolor{good}{\textbf{Green: what helped}}
-\begin{itemize}
-  \item \textbf{Problem 1:} replay\\ rank-1 0.60 $\to$ 0.72
-  \item \textbf{Problem 2:} more training people (458 $\to$ 917)
-  \item \textbf{Problem 2:} a ViT backbone instead of ResNet-50
-\end{itemize}
-\end{column}
-\end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------- 10
 \begin{frame}{Conclusion}
 \begin{center}
 \small
