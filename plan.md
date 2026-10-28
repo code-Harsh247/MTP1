@@ -1,129 +1,135 @@
-# Plan: Nested Learning for Open-Set Ear Recognition
+# Plan v2: catastrophic forgetting in ear recognition, and whether Nested Learning fixes it
 
-> **Status 2026-10-19:** Phases 0–3 are done. The surprise-rejection claim came out **no-go** in the Phase 3 kill test. Proposed next direction: **[plan_continual.md](plan_continual.md)** (continual ear recognition with CMS), pending supervisor sign-off. This file remains the record of Phases 0–3.
+*Started 2026-10-29 on branch `restart-forgetting`, after the professor's review. Study v1 is archived in [archive/v1/](archive/v1/) and tagged `v1-final`.*
 
-*Created 2026-10-18. Replaces the earlier MAML plan.*
+## The professor's brief
 
-## 1. Goal
+1. First **prove catastrophic forgetting** in baseline models, using **different types of models** (CNN-based, transformer-based, …).
+2. Then **apply Nested Learning** and test whether it fixes the forgetting.
+3. Then design a **way to use Nested Learning for continual learning**.
+4. **Always use the same datasets and the same splits.** Use **many different ear datasets**.
 
-Build an ear recognition system that:
+## Research questions
 
-1. recognizes people **not seen during training** (they are only enrolled from a few gallery images), and
-2. **rejects unknown people** who were never enrolled.
+- **RQ1.** Do standard ear models from different families forget catastrophically when they learn new people one group after another?
+- **RQ2.** Does Nested Learning (multi-frequency CMS memory) reduce that forgetting, on exactly the same models, datasets and splits?
+- **RQ3.** Can Nested Learning be turned into a practical continual-enrollment method for ears?
 
-**Thesis claim (hypothesis):** an associative memory built on Nested Learning (NL) principles gives a principled rejection signal, its own *surprise* (prediction error). This should beat the standard "reject if max similarity < threshold" rule at matched false-accept rates.
+## Design: the same experiment, repeated on every dataset
 
-## 2. Core idea in one picture
+Every dataset is **its own, separate experiment**. For each dataset:
 
-```
-ear image ──► backbone (SLOW level, trained offline) ──► embedding z
-                                                          │
-                       enrollment writes into ───►  identity memory (MEDIUM level)
-                                                          │
-probe z ──► query memory ──► surprise s_i for each identity i
-                              │
-              min_i s_i < τ ? ──► yes: identity = argmin_i s_i
-                              └─► no : "unknown"
-```
+1. Start from a fresh ImageNet-pretrained model.
+2. Split that dataset's training people into tasks (groups of new people).
+3. Train on the tasks one after another, measuring how much the model forgets the earlier groups.
 
-Optional FAST level: a small per-probe memory adapted at test time to the probe's pose and occlusion (Phase 5).
+Models never move from one dataset to another. A result counts as general when it holds across the six datasets and the five model families.
 
-## 3. Method design
+Because datasets never touch, a person who appears in two datasets causes no leak, so no cross-dataset overlap check is needed. Duplicate images *within* a dataset are already removed when its manifest is built.
 
-Exact equations and design traps are in [notes/nl_equations.md](notes/nl_equations.md) §8.
+## Rules for the whole study
 
-**Backbone (slow).** ImageNet-pretrained ResNet-50 or ViT-S. Fine-tune on training identities with ArcFace/CosFace and L2-normalize the embedding.
+- **One frozen benchmark.** R0 fixes the splits, task lists, held-out images, input size, metrics and training budget for every dataset, and commits them before any training. Every later experiment uses them unchanged.
+- **Same conditions for every arm:** fp32 precision, input size, augmentation, embedding head (512-d + ArcFace), and the same budget rule.
+- **Seeds:**
+  - Seed 0 is for tuning (validation only). Seeds 1–3 are reported (test) on every dataset.
+  - The small datasets (AMI, AWE, IITD) also report seeds 4–5, because they are cheap to run and their numbers are noisy.
+- **Pre-registration:** every decision rule, report script and task list is committed before the runs it judges. Each verdict is cross-checked against the raw metric files.
+- **Negative results are reported as negative results.**
 
-**Identity memory (medium).** We will try two variants and keep the better one:
+Lessons carried over from v1 (details in [archive/v1/](archive/v1/)):
 
-- **Variant A: per-identity memory.** Each enrolled person *i* gets a small memory M_i, a linear map or a 2-layer MLP. It is written at enrollment by a few Titans-style gradient steps on an associative loss, `ℓ_i(z) = ‖M_i(W_k z) − W_v z‖²`, using that person's gallery embeddings.
-  - Surprise of a probe against person *i* is `s_i = ℓ_i(z_probe)`, or the gradient norm, as in Titans.
-  - Identity is `argmin s_i`. If `min s_i > τ`, the probe is unknown.
-- **Variant B: one shared memory.** A single memory M maps keys to identity codes. Surprise is the distance between the retrieved value and the nearest stored code.
+- Replay is a very strong baseline. It removes most forgetting and leaves little for NL to fix.
+- Precision alone (fp32 vs AMP) changes forgetting, so all arms must use the same precision.
+- Each arm needs a fair recipe.
+- A report script once printed a wrong verdict, so verdicts are always cross-checked.
 
-The projections W_k and W_v and the memory's learning rate, momentum and forget gate are **meta-trained** on training identities. Training is episodic: sample some identities, write their memories, query with known and held-out "unknown" identities, and train so that known probes are unsurprising and unknown probes are surprising.
+## Datasets
 
-**Rejection threshold τ.** Calibrate it on **validation identities only**, never on test.
+| Dataset | Ids / images (known) | Notes |
+|---|---|---|
+| AMI | 100 / 700 | 7 images per id, uniform size |
+| AWE | 100 / 1,000 | 10 per id, very variable size |
+| EarVN1.0 | 164 / 28,412 | many images per id, tiny images |
+| IITD-I | 221 / 793 | only 3–6 per id (median 3), grayscale |
+| UERC 2023 (public) | 1,310 / ≈250k | 3 sources; VGGFace2-derived ears are 94% of images; DGX only |
+| KinEar | *to inspect in R0* | on the DGX, never opened yet |
 
-## 4. Data and protocol
+VGGFace-Ear stays excluded, as in v1.
 
-**Staged datasets: small first, UERC last** (agreed 2026-10-18). Sizes come from the literature and must be verified on disk in Phase 0. All sets live under `/dgx1/dsamantaai/santhosh/Ear_Datasets/` on the DGX.
+## Model families
 
-| Stage | Dataset | Subjects / images | Role | Where it trains |
-|---|---|---|---|---|
-| S1 | **AMI** | 100 / ~700, controlled | Pipeline sanity: does everything run, and do numbers look sane? | Laptop |
-| S2 | **EarVN1.0** | 164 / ~28,400, in the wild | **Main development set**: baselines, kill test, memory design | Laptop (DGX for sweeps) |
-| S3 | **AWE** | 100 / 1,000, in the wild, hard | Harder images; comparable to published results | Laptop |
-| S4 | **UERC 2023 `public/`** | 1,310 / large | Final scale and the thesis results | DGX |
-| — | IITD | 125–221 / ~500–800, controlled | Cross-dataset test only | — |
+All are ImageNet-pretrained through `timm`, with the same embedding neck and ArcFace head.
 
-UERC notes:
+| Family | Model | Params |
+|---|---|---|
+| Classic CNN | ResNet-50 | 25M |
+| Modern CNN | ConvNeXt-Tiny | 28M |
+| Lightweight CNN | MobileNetV3-Large (or EfficientNet-B0) | 5M |
+| Plain transformer | DeiT-S | 22M |
+| Hierarchical transformer | Swin-T | 28M |
 
-- Path: `.../Ear_Datasets/UERC 2023 Competition Package with sequestered anonymized data/data/public/`.
-- The sequestered test set is unlabeled, so all splits come from `public/`.
-- Don't use the truncated `uerc23_dataset.zip`.
+**Input size.** v1 used 128×96 (ears are about 1.4× taller than wide). Swin needs token grids that its windows divide. R0 picks the smallest size that all five models support and uses it for all of them.
 
-**Splits are identity-disjoint:**
+## Protocol (identity-incremental, per dataset)
 
-- train identities: about 70%
-- validation identities: about 10%, split into known and unknown
-- test identities: about 20%, with some enrolled (known) and the rest never enrolled (unknown)
+This is the v1 protocol P1, applied to every dataset.
 
-**Small datasets need repeated splits.** AWE and AMI leave only about 20 test identities (about 10 known and 10 unknown), so one split is too noisy. On S1–S3, report the **mean ± std over 5 random identity splits** (seeds 0–4). On UERC, one split plus 3 training seeds.
+- **Splits.** Each dataset keeps its identity-disjoint open-set split: train / val / test people, with val and test half known and half unknown.
+- **Tasks.** The training people are dealt into T tasks. T is fixed per dataset in R0, for example 10 for UERC and 5 for the smaller sets. On AMI and AWE that gives about 14 people per task.
+- **Held-out images.** Some images of every training person are held out, never trained on, to measure forgetting of people the model has learned.
+  - v1 held out 20% (2 gallery images, the rest probes).
+  - That does not work for IITD (median 3 images per person). R0 sets a per-dataset rule, e.g. 1 held-out probe per person with the gallery taken from that person's training images.
+- **Class-incremental head.** At task t, only the people seen so far take part in the ArcFace softmax.
 
-**Backbones are always ImageNet-pretrained.** Training from scratch on S1–S3 would only memorize the training set.
+**Metrics.**
 
-**Cross-dataset checks:**
+- **Accuracy matrix A[t][j]:** rank-1 on task j's held-out images after training up to task t. All the other metrics come from it.
+- **Final average accuracy** over all tasks.
+- **Forgetting:** the drop from each task's best accuracy to its final accuracy.
+- **Backward transfer (BWT).**
+- Plots of each task's accuracy over time.
+- **Secondary:** open-set AUROC and DIR@FAR at **1%, 5% and 10%** on learned people, and the same metrics on unseen val/test people. All three DIR values come from the same evaluation (`nlear/eval/protocol.py`, `FARS`).
+- **Caution on DIR@1% for small datasets.** On AMI and AWE the unknown probes number only about 70–100. A 1% FAR threshold is then set by the top one or two unknown probes, so DIR@1% will be very noisy there. It is reported with its seed spread and never used alone for a decision.
 
-- Train on EarVN1.0 → test on AWE and IITD.
-- Later, train on UERC → test on EarVN1.0, AWE and IITD.
-- VGGFace-Ear likely overlaps UERC, so exclude it.
+## Phases
 
-**Caveat.** With only about 70–115 training identities, the memory's episodic meta-training can overfit (the identity trap). Positive results on S1–S3 are a **go signal, not the thesis result**; the claim must hold on UERC.
-- **Metrics:**
-  - closed-set: Rank-1
-  - verification: TAR@FAR and EER
-  - open-set: DIR@FAR (1%, 0.1%) and AUROC for known-versus-unknown
+| Phase | Work | Output |
+|---|---|---|
+| **R0. Freeze the benchmark** | Inspect KinEar on the DGX. Prepare IITD and KinEar caches. Build the split set for each of the six datasets (seeds 0–5). Fix the task count and held-out-image rule per dataset. Check that all five models train at the common input size (memory, speed per step). Measure the cost of one run per dataset. Commit everything under `benchmark/`, with split-file hashes. | `notes/r0_benchmark.md`, `benchmark/` |
+| **R1. Joint baselines** (upper bound) | Train each model on all of a dataset's tasks at once. Tune each model's recipe on seed-0 validation with the **same small grid** (learning rate × epochs). | One tuned recipe per model and dataset; joint numbers |
+| **R2. Prove forgetting** (RQ1) | Naive sequential fine-tuning for every model × dataset. Reference continual-learning methods with the same budget: EWC, LwF, and replay (k = 5 images per person, or fewer where a dataset has fewer). **Pre-registered rule:** forgetting is shown for a (model, dataset) cell if, on every reported seed, rank-1 forgetting ≥ 0.10 **and** final average rank-1 ≤ joint − 0.10. | `notes/r2_forgetting.md`: forgetting curves for every model and dataset |
+| **R3. Does NL fix it?** (RQ2) | **NL arm, applied the same way to every family:** each block's pointwise MLP becomes 3 parallel copies of the pretrained weights, updated every 1, 16 and 256 steps (NL Eq. 74 + §7.3). At initialization this equals the plain model, and with all periods = 1 it stays equal (unit-tested). **Primary comparison:** X vs CMS-X, both with *naive* training (no replay). This is NL's own claim, and it is the realistic biometric case, since storing old ear images may not be allowed. **Secondary:** both with replay. **The decision rule is finalized and committed at the end of R2, before any R3 run.** | `notes/r3_nl_forgetting.md` |
+| **R4. NL for continual enrollment** (RQ3) | Design depends on R3. Candidates: (a) CMS with consolidation from fast to slow copies; (b) update periods tied to task boundaries; (c) per-person associative memory for enrolling without touching the backbone. Pre-registered before running. | Method + results |
+| **R5. Write-up** | Thesis chapters and the final report. | |
 
-## 5. Phases
+**What "pointwise MLP" means in each model:**
 
-| Phase | Work | Where | Done when |
-|---|---|---|---|
-| **0. Setup** ✅ | Python env and repo layout. AMI, EarVN1.0, AWE and IITD copied to `data/`, layouts verified, exact duplicates removed, 5 open-set splits each. Findings are in [notes/phase0_data.md](notes/phase0_data.md#phase-0-results-2026-10-18). | Laptop | Splits and the data loader run on all four sets |
-| **1. Read and pin down NL** ✅ | Read the Nested Learning and Titans papers. Write down the exact memory update, surprise, momentum and forget-gate equations. Check whether official code exists (none does). | — | [notes/nl_equations.md](notes/nl_equations.md) is written |
-| **2. Baseline** ✅ (incl. EVM) — results in [notes/phase2_baseline.md](notes/phase2_baseline.md) | Pretrained ResNet with ArcFace. Open-set scores: max cosine, a **subspace-residual** classifier (the linear-memory equivalent, see notes §8.3), and EVM or score normalization. Run in order: AMI (sanity) → EarVN1.0 → AWE. | Laptop | Baseline table on S1–S3 (mean ± std over 5 splits) |
-| **3. Kill test** ✅ **NO-GO on EarVN** (no memory arm beats cosine; meta-training never improved; see [notes/phase3_killtest.md](notes/phase3_killtest.md)). Decision pending: UERC retest vs fallback (§6) | On EarVN1.0, freeze the baseline backbone and compare four rejection scores on saved embeddings: (1) max cosine, (2) linear-memory surprise, (3) deep-memory surprise without meta-training, (4) deep-memory surprise with episodic meta-training. Confirm on AWE. | Laptop | Go or no-go decision (see §6) |
-| **4. Full NL-Ear** | Meta-train the memory parameters, try Variant B, and run ablations: memory depth, number of write steps, momentum on/off, forget gate on/off. Develop on EarVN1.0, then **scale to UERC** (S4) for the main results. | Laptop → DGX | Main results table on UERC |
-| **5. Extras (if time)** | (a) Fast test-time memory for pose and occlusion. (b) Continual enrollment: add identities in batches and measure forgetting. (c) Cross-dataset tests (see §4). | DGX | Extra tables |
-| **6. Write-up** | Thesis chapters, figures, and score-distribution plots | — | Draft to the supervisor |
+| Model | Its pointwise MLP |
+|---|---|
+| DeiT-S, Swin-T | the FFN |
+| ConvNeXt | the inverted-bottleneck MLP |
+| ResNet-50 | the bottleneck's 1×1 convolutions |
+| MobileNetV3 | the expand and project 1×1 convolutions |
 
-## 6. Decision rule (fixed in advance)
+## Code changes needed (before R1)
 
-After Phase 3: if surprise-based rejection shows **no gain** over max-cosine at matched FAR, do not push the "surprise" claim further. Fall back to:
+- `nlear/models.py`: a generic timm backbone for all five families, plus a generic CMS wrapper for pointwise MLPs or 1×1 convs.
+- `nlear/data/`: manifests, caches and splits for IITD and KinEar.
+- `nlear/continual.py`: the per-dataset task count and held-out-image rule (including the few-images case for IITD).
+- Tests: exactness of CMS at initialization for every family, plus the task-list and split invariants.
 
-- the NL memory as an **enrollment and continual-learning** mechanism (Phase 5b) as the main contribution, or
-- a CMS multi-frequency backbone compared against the standard backbone.
+## Compute and priorities
 
-Report the negative result honestly either way.
+Rough size: 6 datasets × 5 models × 7 arms (joint, naive, EWC, LwF, replay, CMS, CMS + replay) × 3–5 seeds is about 700 runs, plus tuning. Most of them are on the small datasets and take minutes. UERC dominates the cost. R0 measures the real cost. If it is too much, scope is cut in this order:
 
-## 7. Compute split
+1. run EWC and LwF only on UERC and EarVN;
+2. run CMS + replay (the secondary NL comparison) only on UERC and EarVN.
 
-The laptop has an RTX 3050 Laptop GPU (4 GB VRAM), 16 GB RAM and a Ryzen 7 5800H.
+Never cut: the five model families, the six datasets, and the joint, naive and CMS arms. These are what the professor asked for.
 
-- **Laptop:** everything on AMI, EarVN1.0 and AWE. That means training a pretrained ResNet-18/50 at 128 px with mixed precision and moderate batch sizes, memory experiments, evaluation and plots. A run should take minutes up to about an hour.
-- **DGX (Slurm, `dgx_all` / account `dsamantaai` / QOS `gpu2`, `harsh_` job prefix; login `dsamantaai@gpucluster.iitkgp.ac.in`):** hyperparameter sweeps, all UERC training, and final runs.
+## Questions for the professor
 
-## 8. Risks
-
-- NL is validated on language and sequence modeling, not vision. A gain is not guaranteed, which is why strong baselines and the Phase 3 kill test come first.
-- Official HOPE/Titans code may be incomplete, so the memory module may need a reimplementation. It is small (about 100–200 lines).
-- Surprise may only measure "how different from the gallery" and add nothing beyond cosine distance. Phase 3 is designed to catch this early.
-- **Identity trap:** a memory that learns something close to the identity map gives low surprise for *everyone*, unknowns included. Mitigations: W_K ≠ W_V, low-capacity memories, the forget gate, and meta-training with unknowns in every episode.
-- A linear memory reduces to a classic subspace classifier. The NL contribution must come from deep memory and a meta-learned write rule.
-- Few gallery images per identity may make per-identity memories overfit. Keep the memories tiny and regularized.
-
-## 9. Open questions for the supervisor
-
-1. Is surprise-based open-set rejection acceptable as the main thesis claim, with the fallback in §6?
-2. Which backbone is expected: CNN or ViT?
-3. What is the deadline for first results?
+1. Is running the same experiment separately on each dataset (rather than one model learning dataset after dataset) what you meant by "use many different ear datasets"?
+2. Is a clear negative answer to RQ2 ("NL does not reduce forgetting") acceptable as a thesis outcome?
+3. Should replay count as allowed? It stores old people's ear images, which may be restricted in a real biometric system.

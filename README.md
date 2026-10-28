@@ -1,16 +1,19 @@
 # NL-Ear
 
-Nested Learning memories for open-set ear recognition. MTP project; see [plan.md](plan.md).
+Catastrophic forgetting in ear recognition across model families and six ear datasets, and whether Nested Learning (NL) fixes it. MTP project; see [plan.md](plan.md).
+
+Study v1 (NL for open-set ear recognition) is archived in [archive/v1/](archive/v1/) and tagged `v1-final`.
 
 ```
-plan.md               project plan and phases
-notes/                equations (nl_equations.md), data-transfer steps (phase0_data.md)
+plan.md               study v2 plan: phases R0-R5, rules, datasets, models (one experiment per dataset)
+notes/                NL equations (nl_equations.md), DGX runbook (dgx_runbook.md), new results notes
 papers/               Nested Learning and Titans PDFs
-configs/              one per dataset: ami, earvn, awe (laptop), uerc (DGX)
-nlear/data/           manifest, identity-disjoint open-set splits, dataset
-scripts/make_splits.py
-scripts/dgx/          scripts that run on the cluster
+reports/nl_primer/    plain-language study guide to Nested Learning
+configs/              one per dataset and model recipe
+nlear/                library: data, models, CMS, continual learning, evaluation
+scripts/              training, evaluation and report scripts; scripts/dgx/ runs on the cluster
 tests/
+archive/v1/           plans, notes and reports from study v1
 ```
 
 ## Setup (Windows laptop)
