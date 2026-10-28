@@ -6,10 +6,15 @@
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 \definecolor{good}{HTML}{2E7D32}
 \definecolor{bad}{HTML}{C62828}
 \definecolor{accent}{HTML}{1F5FA8}
+\definecolor{soft}{HTML}{E8EEF7}
 \setbeamercolor{frametitle}{bg=accent!85!black}
 \setbeamercolor{progress bar}{fg=accent!60}
 \setbeamercolor{alerted text}{fg=bad}
@@ -17,6 +22,11 @@
 \newcommand{\down}[1]{\textcolor{bad}{\textbf{#1}}}
 \newcommand{\takeaway}[1]{\vfill\begin{center}\colorbox{accent!10}{\parbox{0.92\textwidth}{\centering\vspace{3pt}#1\vspace{3pt}}}\end{center}}
 \renewcommand{\arraystretch}{1.15}
+
+\tikzset{
+  box/.style={draw=accent,fill=soft,rounded corners=3pt,align=center,font=\small,minimum height=0.9cm,inner sep=4pt},
+  arr/.style={-{Stealth[length=2.2mm]},thick,accent!80!black},
+}
 
 \title{Nested Learning for Open-Set Ear Recognition}
 \subtitle{An experimental study}
@@ -37,40 +47,70 @@
   \item Test people are \textbf{never seen in training}
 \end{itemize}
 
-\bigskip
-\textbf{Research question}
-\begin{itemize}
-  \item Can ideas from \emph{Nested Learning} (NeurIPS 2025) do this better than a standard model?
-  \item Can they help the model \textbf{learn new people over time} without forgetting old ones?
-\end{itemize}
+\medskip
+\begin{center}
+\begin{tikzpicture}[node distance=0.45cm]
+  \node[box] (img) {New ear\\image};
+  \node[box,right=of img] (net) {ResNet-50};
+  \node[box,right=of net] (emb) {Embedding\\(512 numbers)};
+  \node[box,right=of emb] (cmp) {Compare with each\\enrolled person};
+  \node[box,right=1.6cm of cmp,yshift=0.6cm,draw=good,fill=good!10] (yes) {Name the person};
+  \node[box,right=1.6cm of cmp,yshift=-0.6cm,draw=bad,fill=bad!8] (no) {Reject: unknown};
+  \draw[arr] (img) -- (net); \draw[arr] (net) -- (emb); \draw[arr] (emb) -- (cmp);
+  \draw[arr] (cmp.east) -- node[above,font=\scriptsize,pos=0.45,xshift=-4pt]{high} (yes.west);
+  \draw[arr] (cmp.east) -- node[below,font=\scriptsize,pos=0.45,xshift=-4pt]{low} (no.west);
+\end{tikzpicture}
+\end{center}
+
+\medskip
+\textbf{Research question:} can ideas from \emph{Nested Learning} (NeurIPS 2025) do this better than a standard model, and help it \textbf{learn new people over time} without forgetting?
 \end{frame}
 
 % ---------------------------------------------------------------- 3
 \begin{frame}{Nested Learning in one slide}
+\begin{columns}[T]
+\begin{column}{0.45\textwidth}
 \textbf{Behrouz et al., Google, NeurIPS 2025}
 \begin{itemize}
-  \item A model is seen as several learning processes \textbf{nested inside each other}
-  \item Each one updates at \textbf{its own speed}: some every step, some rarely
+  \item A model is several learning processes \textbf{nested inside each other}
+  \item Each one updates at \textbf{its own speed}
   \item Claimed benefit: better memory and \textbf{continual learning}
 \end{itemize}
+\end{column}
+\begin{column}{0.53\textwidth}
+\centering
+\begin{tikzpicture}[x=0.22cm,y=0.55cm]
+  \foreach \lab/\y/\per/\col in {Fast part/2/1/bad, Medium part/1/4/orange, Slow part/0/16/accent}{
+    \node[anchor=east,font=\scriptsize] at (-0.4,\y) {\lab};
+    \draw[gray!50] (0,\y) -- (16.5,\y);
+    \foreach \t in {1,...,16}{
+      \pgfmathtruncatemacro{\r}{mod(\t,\per)}
+      \ifnum\r=0 \fill[\col] (\t,\y) circle (0.16);\fi
+    }
+  }
+  \draw[-{Stealth},gray] (0,-0.7) -- (17,-0.7) node[right,font=\scriptsize]{training steps};
+\end{tikzpicture}\\[2pt]
+{\scriptsize Dots = when each part updates (illustration)}
+\end{column}
+\end{columns}
 
 \medskip
-\textbf{The three NL ideas we tested}
-\begin{center}
-\begin{tabularx}{0.95\textwidth}{@{}lX@{}}
+\textbf{The three NL ideas we tested}\\[2pt]
+\small
+\begin{tabularx}{\textwidth}{@{}lX@{}}
 \toprule
 \textbf{1. Memory} & A small network that learns at test time. ``Surprise'' = how badly it predicts a new input.\\
 \textbf{2. Multi-speed learning (CMS)} & Some parts of the network update every step, others every 16 or 256 steps.\\
 \textbf{3. M3 optimizer} & An optimizer with a fast and a slow momentum.\\
 \bottomrule
 \end{tabularx}
-\end{center}
 \end{frame}
 
 % ---------------------------------------------------------------- 4
 \begin{frame}{How we tested}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
+\small
 \textbf{Data}
 \begin{itemize}
   \item EarVN1.0: 164 people (small)
@@ -82,78 +122,105 @@
 \begin{itemize}
   \item ResNet-50 + ArcFace
   \item Cosine similarity to each person's average gallery embedding
+  \item UERC: DIR@5\% 0.370
 \end{itemize}
 
-\medskip
-\textbf{Main metric: DIR@5\%}\\
-\small Share of enrolled people accepted \emph{and} correctly named, when 5\% of unknown people get in.
 \end{column}
-\begin{column}{0.48\textwidth}
+\begin{column}{0.50\textwidth}
+\textbf{Main metric: DIR@5\%}\\[2pt]
+\small Set the threshold so that \textbf{5\% of unknown people} get in. DIR@5\% = share of enrolled people that are accepted \textbf{and} correctly named.
+
+\medskip
+\centering
+\begin{tikzpicture}[x=4.6cm,y=0.45cm]
+  \draw[-{Stealth},gray] (0,0) -- (1.05,0) node[right,font=\scriptsize]{score};
+  \foreach \s in {0.08,0.15,0.22,0.3,0.36,0.44,0.52,0.6,0.74}{\fill[bad] (\s,0.6) circle[radius=2.2pt];}
+  \foreach \s in {0.33,0.48,0.62,0.7,0.78,0.84,0.9,0.95}{\fill[good] (\s,1.5) circle[radius=2.2pt];}
+  \node[anchor=east,font=\scriptsize,bad] at (0,0.6) {unknown};
+  \node[anchor=east,font=\scriptsize,good] at (0,1.5) {enrolled};
+  \draw[very thick,dashed] (0.7,-0.2) -- (0.7,2.3);
+  \node[font=\scriptsize] at (0.7,-0.75) {threshold};
+  \node[font=\scriptsize,good] at (0.86,2.7) {accepted $\rightarrow$};
+  \node[font=\scriptsize,bad] at (0.52,2.7) {$\leftarrow$ rejected};
+\end{tikzpicture}
+
+\raggedright
 \textbf{Fair comparison}
 \begin{itemize}
-  \item Settings chosen on validation people only
   \item Decision rule \textbf{fixed before} each run
   \item Each NL method vs.\ the \textbf{same model without the NL part}
-  \item Repeated on 3--5 random splits
+  \item Repeated on 3--5 random splits of people
 \end{itemize}
-
-\medskip
-\textbf{Baseline on UERC}
-\begin{center}
-\begin{tabular}{lc}
-\toprule
-Rank-1 & 0.662\\
-DIR@5\% & 0.370\\
-\bottomrule
-\end{tabular}
-\end{center}
 \end{column}
 \end{columns}
 \end{frame}
 
 % ---------------------------------------------------------------- 5
 \begin{frame}{Idea 1: Memory --- no gain}
-\textbf{Method}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\textbf{Method}\\[3pt]
+\centering
+\begin{tikzpicture}[node distance=0.45cm]
+  \node[box] (z) {Embedding\\of test image};
+  \node[box,right=of z,draw=orange,fill=orange!10] (m) {Small memory\\of person A};
+  \node[box,right=of m] (o) {Memory\\output};
+  \draw[arr] (z) -- (m); \draw[arr] (m) -- (o);
+  \draw[{Stealth}-{Stealth},thick,dashed,bad] (z.south) to[bend right=25] node[below,font=\scriptsize,text=bad]{surprise = difference} (o.south);
+\end{tikzpicture}\\[3pt]
+\raggedright\small
 \begin{itemize}
-  \item Each enrolled person gets a small memory, trained on their 2 gallery embeddings
-  \item A test image is matched to the memory with the \textbf{lowest surprise}
-  \item Also tried \textbf{meta-training} the memory on separate practice people
+  \item Each memory is trained on that person's 2 gallery embeddings
+  \item Match = \textbf{lowest surprise}; reject if all are high
+  \item Also tried \textbf{meta-training} the memory
 \end{itemize}
-
-\begin{center}
+\end{column}
+\begin{column}{0.44\textwidth}
+\centering
 \begin{tabular}{lcc}
 \toprule
 \textbf{DIR@5\%} & \textbf{EarVN} & \textbf{UERC}\\
 \midrule
 Cosine (baseline) & \textbf{0.122} & \textbf{0.241}\\
 Memory & 0.116 & 0.236\\
-Meta-trained memory & 0.116 & 0.236\\
+Meta-trained & 0.116 & 0.236\\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{column}
+\end{columns}
 
 \takeaway{Never better than cosine. Meta-training never improved the memory, even with 8$\times$ more people.}
 \end{frame}
 
 % ---------------------------------------------------------------- 6
 \begin{frame}{Idea 2: Multi-speed learning --- small gain, gone at scale}
-\textbf{Setting: continual learning}
-\begin{itemize}
-  \item The model learns people in groups (EarVN: 5 groups, UERC: 10 groups)
-  \item Replay of old images in both arms (the best standard method)
-  \item NL version: backbone updates every 16 steps \textbf{vs.} the same model updating every step
-\end{itemize}
+\textbf{Setting: continual learning.} The model learns people in groups, with replay of old images in both arms.\\
+NL version: backbone updates every 16 steps \textbf{vs.} the same model updating every step.
 
-\begin{center}
+\begin{columns}[c]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[node distance=0.12cm]
+  \foreach \i/\c in {1/accent!20,2/accent!35,3/accent!50,4/accent!65,5/accent!80}{
+    \node[draw=accent,fill=\c,minimum width=0.7cm,minimum height=0.6cm,font=\scriptsize] (g\i) at (\i*0.85,0) {G\i};
+  }
+  \draw[arr] (0.45,-0.6) -- (4.7,-0.6) node[below,midway,font=\scriptsize,yshift=-1pt]{learned one group at a time};
+\end{tikzpicture}\\[2pt]
+{\scriptsize EarVN: 5 groups \quad UERC: 10 groups}
+\end{column}
+\begin{column}{0.52\textwidth}
+\centering
+\small
 \begin{tabular}{lccc}
 \toprule
-\textbf{Rank-1 on learned people} & \textbf{Normal} & \textbf{Multi-speed} & \textbf{Splits better}\\
+\textbf{Rank-1} & \textbf{Normal} & \textbf{Multi-speed} & \textbf{Better}\\
 \midrule
 EarVN (small) & 0.580 & 0.618 & \up{5 / 5}\\
 UERC (large)  & 0.728 & 0.713 & \down{0 / 3}\\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{column}
+\end{columns}
 
 \takeaway{The small-data gain reverses at scale. Extra CMS blocks added nothing.}
 \end{frame}
@@ -162,40 +229,61 @@ UERC (large)  & 0.728 & 0.713 & \down{0 / 3}\\
 \begin{frame}{Idea 3: M3 optimizer --- worse than AdamW}
 \textbf{Method:} train the UERC baseline with M3 instead of AdamW; everything else unchanged.
 
-\begin{center}
+\begin{columns}[c]
+\begin{column}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  xbar, bar shift=0pt, width=5.0cm, height=3.6cm, xmin=0.25, xmax=0.40,
+  symbolic y coords={M3 without NL part,M3,AdamW},
+  ytick={M3 without NL part,M3,AdamW}, yticklabel style={font=\scriptsize}, xticklabel style={font=\scriptsize},
+  xlabel={\scriptsize DIR@5\% (UERC)}, bar width=9pt, enlarge y limits=0.25,
+  nodes near coords, nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=3,fixed zerofill}, axis lines*=left]
+  \addplot[fill=accent!60,draw=accent] coordinates {(0.370,AdamW)};
+  \addplot[fill=bad!60,draw=bad] coordinates {(0.301,M3) (0.331,M3 without NL part)};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.48\textwidth}
+\small
 \begin{tabular}{lcc}
 \toprule
 \textbf{Optimizer} & \textbf{Rank-1} & \textbf{DIR@5\%}\\
 \midrule
-AdamW (baseline) & \textbf{0.662} & \textbf{0.370}\\
+AdamW & \textbf{0.662} & \textbf{0.370}\\
 M3 (NL) & 0.599 & 0.301\\
-M3 without its slow momentum & 0.638 & 0.331\\
+M3 without NL part & 0.638 & 0.331\\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{column}
+\end{columns}
 
 \takeaway{M3 is worse on 3 / 3 splits. Removing its NL part makes it better. It is also 2.7$\times$ slower.}
 \end{frame}
 
 % ---------------------------------------------------------------- 8
 \begin{frame}{The paper's own design --- also no real gain}
-\textbf{Method:} pretrained Vision Transformer (DeiT-S). Each MLP becomes 3 copies that update every 1, 16 and 256 steps.
-
-\begin{columns}[T]
-\begin{column}{0.40\textwidth}
-\centering\textbf{Normal training (UERC)}\\[4pt]
-\begin{tabular}{lc}
-\toprule
- & \textbf{DIR@5\%}\\
-\midrule
-ViT (baseline) & \textbf{0.433}\\
-ViT + CMS & 0.408\\
-\bottomrule
-\end{tabular}\\[4pt]
-\small Worse on \down{3 / 3} splits
+\begin{columns}[c]
+\begin{column}{0.38\textwidth}
+\textbf{Pretrained ViT (DeiT-S):} each MLP becomes 3 copies updating at different speeds.\\[4pt]
+\centering
+\begin{tikzpicture}[node distance=0.12cm]
+  \node[box,minimum width=2.6cm] (att) {Attention};
+  \node[box,below=0.35cm of att,draw=bad,fill=bad!8,minimum width=0.75cm,font=\scriptsize] (c2) {MLP\\16};
+  \node[box,left=of c2,draw=bad,fill=bad!8,minimum width=0.75cm,font=\scriptsize] (c1) {MLP\\1};
+  \node[box,right=of c2,draw=bad,fill=bad!8,minimum width=0.75cm,font=\scriptsize] (c3) {MLP\\256};
+  \draw[arr] (att) -- (c2);
+  \draw[arr] (att.south) -- (c1.north); \draw[arr] (att.south) -- (c3.north);
+  \node[below=0.12cm of c2,font=\scriptsize] {update every 1 / 16 / 256 steps};
+\end{tikzpicture}
 \end{column}
-\begin{column}{0.58\textwidth}
-\centering\textbf{Continual learning (UERC)}\\[4pt]
+\begin{column}{0.60\textwidth}
+\small
+\textbf{Normal training (UERC):} DIR@5\% ViT \textbf{0.433} vs.\ ViT + CMS 0.408, worse on \down{3 / 3}
+
+\medskip
+\textbf{Continual learning (UERC):}\\[3pt]
+\centering
 \begin{tabular}{lcc}
 \toprule
  & \textbf{ViT} & \textbf{ViT + CMS}\\
@@ -204,42 +292,46 @@ Rank-1 & 0.732 & 0.743\\
 Forgetting $\downarrow$ & \textbf{0.107} & 0.120\\
 Rejection (AUROC) & \textbf{0.716} & 0.698\\
 \bottomrule
-\end{tabular}\\[4pt]
-\small Tiny rank-1 gain, but \down{more forgetting} and \down{worse rejection}
+\end{tabular}
 \end{column}
 \end{columns}
 
-\takeaway{CMS does not reduce forgetting, which is what NL claims it should do.}
+\takeaway{Tiny rank-1 gain, but \down{more forgetting} and \down{worse rejection}. CMS does not do what NL claims.}
 \end{frame}
 
 % ---------------------------------------------------------------- 9
 \begin{frame}{Conclusion}
-\begin{columns}[T]
-\begin{column}{0.52\textwidth}
-\textbf{Every NL idea, tested fairly}\\[4pt]
-\small
-\begin{tabular}{lcc}
-\toprule
-\textbf{NL idea} & \textbf{Small data} & \textbf{Large data}\\
-\midrule
-Memory & no gain & no gain\\
-Multi-speed (ResNet) & small gain & \down{worse}\\
-M3 optimizer & --- & \down{worse}\\
-CMS inside ViT & --- & \down{worse}\\
-\bottomrule
-\end{tabular}
+\begin{columns}[c]
+\begin{column}{0.60\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  xbar, bar shift=0pt, width=7.4cm, height=5.4cm, xmin=-0.14, xmax=0.19,
+  symbolic y coords={ViT backbone,More training people,M3 optimizer,CMS inside ViT,Multi-speed backbone,Memory},
+  ytick={ViT backbone,More training people,M3 optimizer,CMS inside ViT,Multi-speed backbone,Memory}, yticklabel style={font=\scriptsize}, xticklabel style={font=\scriptsize,/pgf/number format/fixed},
+  xlabel={\scriptsize Change in DIR@5\% vs.\ its baseline (UERC)}, bar width=8pt, enlarge y limits=0.12,
+  nodes near coords, nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=3,showpos},
+  axis lines*=left, extra x ticks={0}, extra x tick style={grid=major,grid style={black}}, extra x tick labels={}]
+  \addplot[fill=bad!60,draw=bad] coordinates {(-0.005,Memory) (-0.017,Multi-speed backbone) (-0.025,CMS inside ViT) (-0.069,M3 optimizer)};
+  \addplot[fill=good!60,draw=good] coordinates {(0.129,More training people) (0.063,ViT backbone)};
+\end{axis}
+\end{tikzpicture}
 \end{column}
-\begin{column}{0.44\textwidth}
-\textbf{What actually helped}
+\begin{column}{0.38\textwidth}
+\textcolor{bad}{\textbf{Red: Nested Learning ideas}}\\
+All at or below their baseline.
+
+\medskip
+\textcolor{good}{\textbf{Green: what actually helped}}
 \begin{itemize}
-  \item More training people:\\ 458 $\to$ 917 people, \up{+0.13} DIR@5\%
-  \item Replay of old images in continual learning
-  \item A ViT backbone:\\ 0.370 $\to$ \up{0.433} DIR@5\%
+  \item 458 $\to$ 917 training people
+  \item ResNet-50 $\to$ ViT backbone
+  \item (plus replay in continual learning)
 \end{itemize}
 \end{column}
 \end{columns}
 
-\takeaway{\textbf{Nested Learning does not improve open-set ear recognition.}\\ Next step: thesis write-up.}
+\takeaway{\textbf{Nested Learning does not improve open-set ear recognition.} Next step: thesis write-up.}
 \end{frame}
 
 \end{document}
