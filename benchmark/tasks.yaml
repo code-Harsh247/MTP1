@@ -7,35 +7,41 @@
 #   seeds         0 = tuning (validation only); the rest are reported on test
 #
 # The split files themselves (data/<name>/splits_seed{s}.csv) and the task files written by
-# scripts/make_task_lists.py are not in git; benchmark/hashes_<name>.txt pins their contents.
+# scripts/make_task_lists.py are not in git; benchmark/hashes_<name>.txt pins their contents
+# (by file name, so the same hash file checks the laptop copy and the DGX copy).
 
 datasets:
   ami:
     config: configs/ami.yaml
+    dgx_config: configs/ami_dgx.yaml
     n_tasks: 5           # 70 train people -> 14 per task; 7 images each -> 3 held out, 4 trained
     holdout_frac: 0.2
     held_gallery: 2
     seeds: [0, 1, 2, 3, 4, 5]
   awe:
     config: configs/awe.yaml
+    dgx_config: configs/awe_dgx.yaml
     n_tasks: 5           # 70 train people -> 14 per task; 10 images each -> 3 held out, 7 trained
     holdout_frac: 0.2
     held_gallery: 2
     seeds: [0, 1, 2, 3, 4, 5]
   iitd:
     config: configs/iitd.yaml
+    dgx_config: configs/iitd_dgx.yaml
     n_tasks: 5           # ~155 train people -> ~31 per task; 3-6 images each -> 1 held-out probe
     holdout_frac: 0.2
     held_gallery: 0      # too few images for a separate gallery
     seeds: [0, 1, 2, 3, 4, 5]
   earvn:
     config: configs/earvn.yaml
+    dgx_config: configs/earvn_dgx.yaml
     n_tasks: 5           # 115 train people -> 23 per task (as in v1 C1-C3b)
     holdout_frac: 0.2
     held_gallery: 2
     seeds: [0, 1, 2, 3]
   uerc:
     config: configs/uerc.yaml   # DGX only: run make_task_lists.py there
+    dgx_config: configs/uerc.yaml
     n_tasks: 10          # 917 train people -> ~92 per task (as in v1 U3)
     holdout_frac: 0.2
     held_gallery: 2

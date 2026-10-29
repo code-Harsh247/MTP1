@@ -1,0 +1,9 @@
+# Study v2 model families (plan.md). timm weight tags, all ImageNet-1k only.
+# Checked in R0: all train at 128x96 (scripts/check_archs.py) and their weights load there
+# (scripts/check_pretrained.py). Stochastic depth is off for all (nlear/models.py: _timm).
+models:
+  classic_cnn: resnet50.tv2_in1k
+  modern_cnn: convnext_tiny.fb_in1k
+  lightweight_cnn: mobilenetv3_large_100.ra_in1k
+  plain_transformer: deit_small_patch16_224.fb_in1k
+  hierarchical_transformer: swin_tiny_patch4_window7_224.ms_in1k

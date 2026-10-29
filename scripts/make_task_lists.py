@@ -6,8 +6,9 @@ data/<name>/tasks_seed{s}.csv, and record the md5 of both files in benchmark/has
 A per-task summary goes to benchmark/summary_<name>.txt.
 
     .venv/Scripts/python scripts/make_task_lists.py                  # all local datasets
-    .venv/Scripts/python scripts/make_task_lists.py --only uerc      # on the DGX
     .venv/Scripts/python scripts/make_task_lists.py --check          # verify against the hashes
+    python scripts/make_task_lists.py --dgx --only uerc              # on the DGX: build UERC's lists
+    python scripts/make_task_lists.py --dgx --check --skip uerc      # on the DGX: verify the copies
 """
 import argparse
 import hashlib
@@ -51,22 +52,29 @@ def main():
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--skip", nargs="*", default=["uerc"], help="datasets not on this machine")
     ap.add_argument("--check", action="store_true", help="recompute and compare with the hash files")
+    ap.add_argument("--dgx", action="store_true", help="use each dataset's dgx_config (cluster paths)")
     args = ap.parse_args()
     bench = yaml.safe_load(open(args.bench))["datasets"]
     names = args.only or [n for n in bench if n not in (args.skip or [])]
     ok = True
     for name in names:
         b = bench[name]
-        dcfg = yaml.safe_load(open(ROOT / b["config"]))
+        dcfg = yaml.safe_load(open(ROOT / b["dgx_config" if args.dgx else "config"]))
         lines, summary = [], []
         for seed in b["seeds"]:
             split_file = Path(dcfg["data"]["splits"].format(seed=seed))
             df = pd.read_csv(split_file, dtype={"identity": str, "path": str})
             tasks = make_task_splits(df, b["n_tasks"], b["holdout_frac"], n_gallery=b["held_gallery"], seed=seed)
             out = task_path(dcfg["data"]["splits"], seed)
-            if not args.check:
-                tasks[KEEP].to_csv(out, index=False)
-            lines += [f"{md5(split_file)}  {split_file.as_posix()}", f"{md5(out)}  {out.as_posix()}"]
+            text = tasks[KEEP].to_csv(index=False, lineterminator="\n")   # same bytes on Windows and Linux
+            if args.check:
+                rebuilt = hashlib.md5(text.encode()).hexdigest() == md5(out)
+                ok &= rebuilt
+                if not rebuilt:
+                    print(f"[{name}] seed {seed}: {out.name} differs from a fresh rebuild")
+            else:
+                out.write_text(text, newline="")
+            lines += [f"{md5(split_file)}  {split_file.name}", f"{md5(out)}  {out.name}"]
             s = summarize(tasks, b["n_tasks"])
             summary.append(f"seed {seed}: {s['people'].sum()} train people, per task "
                            f"{s['people'].min()}-{s['people'].max()}; train imgs {s['train_imgs'].sum()}, "

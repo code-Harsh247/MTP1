@@ -1,0 +1,21 @@
+# iitd on the DGX (study v2). Same people, splits and manifest as configs/iitd.yaml: the CSVs are
+# copied from the laptop, never regenerated; only the image root and file locations differ.
+# IITD-I. Cross-dataset test only (we never train on it).
+# On disk (verified 2026-10-18): iitd/{train,test}/<id>/<id>_<k>.bmp, 221 ids, 793 images,
+# only 3-6 images per id (median 3), so min_images=3 and a single gallery image.
+name: iitd
+data:
+  root: "/dgx1/dsamantaai/santhosh/Ear_Datasets/iitd1p_dataset"
+  identity_regex: '([^/]+)/[^/]+$'
+  manifest: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/iitd/manifest.csv
+  splits: /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear_data/iitd/splits_seed{seed}.csv
+  img_size: [128, 96]                 # [h, w]; ears are ~1.4x taller than wide
+
+splits:
+  seeds: [0, 1, 2, 3, 4, 5]
+  min_images: 3
+  frac_train: 0.70
+  frac_val: 0.10
+  known_frac: 0.5
+  n_gallery: 1
+  stratify_by: source
