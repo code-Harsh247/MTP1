@@ -151,10 +151,24 @@ Seed-0 summary (`benchmark/summary_<name>.txt` has every seed):
 - slow copies change only on their period;
 - with periods 1,1,1 the copies stay identical.
 
+## DGX setup (2026-10-29)
+
+- Code bundle `68384e0` and `r0_data.tar.gz` (manifests, splits and task files of AMI, AWE, IITD; EarVN task files) unpacked under `MTP_Harsh/`.
+- **timm 1.0.30 on the DGX**, the same as the laptop.
+- `prepare.py`:
+  - built the AMI (700), AWE (1,000) and IITD (793) caches at 128×96;
+  - checked the splits;
+  - cached all five weight sets in the DGX Hugging Face cache.
+- `make_task_lists.py --dgx --check`: **AMI, AWE, IITD and EarVN match their hash files on the DGX**. The cluster copies are byte-identical to the laptop's.
+- UERC task lists built on the DGX: 917 train people, 10 tasks of 91–92. Seed 0 has 138,750 train images, 1,834 held-out gallery images and 33,015 held-out probes; seeds 1–3 are similar (`benchmark/summary_uerc.txt`).
+
+**Shell notes:**
+- In PowerShell, `$` inside a double-quoted ssh command is expanded *locally*. Use full paths instead of `$P` / `$PWD`.
+- A one-shot `ssh host "cmd"` does not load the login profile, so `sbatch` is not on the PATH. Submit jobs from an interactive ssh session.
+
 ## Still to do in R0
 
 1. **On the DGX:**
-   - copy the four new weight sets into the Hugging Face cache, plus the code and the small datasets' caches;
-   - generate UERC's task lists (`make_task_lists.py --only uerc`);
-   - time one short run per dataset and model.
+   - ~~bring UERC's hash and summary files back~~ (done: `benchmark/hashes_uerc.txt`, `summary_uerc.txt`);
+   - the timing job (`make_r0_timing_tasks.sh`, 25 runs) is **submitted as job 35551**; waiting for results.
 2. **The R0 freeze commit.**

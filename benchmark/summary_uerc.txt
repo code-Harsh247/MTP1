@@ -1,0 +1,5 @@
+uerc: 10 tasks, holdout 0.2, held gallery 2
+seed 0: 917 train people, per task 91-92; train imgs 138750, gallery imgs 1834, held-out probes 33015
+seed 1: 917 train people, per task 91-92; train imgs 138548, gallery imgs 1834, held-out probes 32943
+seed 2: 917 train people, per task 91-92; train imgs 141362, gallery imgs 1834, held-out probes 33649
+seed 3: 917 train people, per task 91-92; train imgs 140293, gallery imgs 1834, held-out probes 33390

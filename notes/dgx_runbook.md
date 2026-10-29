@@ -8,6 +8,61 @@ The DGX runs many seeds and methods **in parallel** (a Slurm job array, at most 
 
 Run every command below from `C:\MTP1` in **Git Bash** on the laptop, unless it says "on the DGX". Replace `DGX` with `dsamantaai@gpucluster.iitkgp.ac.in`.
 
+## W. The worker: wait in the queue once, then run everything (study v2)
+
+A **worker** is one long Slurm job that holds its GPUs and runs task lines as we drop them into a queue folder. We wait in the Slurm queue once per worker, not once per experiment.
+
+**Cluster limits** (checked 2026-10-29):
+- the gpu2 QOS allows jobs of up to **3 days**;
+- the shared account may have **10 running / 20 submitted** jobs in total;
+- `dgx_all` has no time limit and 8 GPUs per node.
+
+**How it works** (`scripts/dgx/worker.sbatch`):
+- Each GPU is a "slot" that takes the oldest file in `queue/pending/`, runs it, and moves it to `queue/done/` or `queue/failed/`.
+- Output goes to `logs/worker/<task>.out`, and one row per finished task to `queue/ledger.tsv` (time, task, result, seconds, GPU, job).
+- **A slot exits when any of these happens:**
+  1. no work has arrived for `IDLE_MIN` minutes (default 30), so we don't hold idle GPUs on a shared account;
+  2. a `queue/STOP` file exists (after finishing its current task);
+  3. less than `MIN_LEFT_H` hours (default 3) of wall time are left, so it never starts a run it cannot finish.
+- The job ends when all its slots have exited.
+
+**Start a worker** (interactive ssh session on the DGX, because `sbatch` is not on the PATH of one-shot ssh commands):
+
+```bash
+cd /dgx1/dsamantaai/santhosh/MTP_Harsh/nlear
+bash scripts/dgx/worker_start.sh 24 2      # 24 hours, 2 GPUs (72 h is the maximum)
+```
+
+A shorter time limit usually starts sooner, because Slurm backfills short jobs into gaps.
+
+**Send it work.** This works any time, even before the worker has started; tasks wait in `pending/`:
+
+```bash
+bash scripts/dgx/enqueue.sh tasks_r1_tune.txt
+```
+
+Each line of the task file is one python run, written exactly as for `py_array.sbatch`.
+
+**Check on it:**
+
+```bash
+bash scripts/dgx/worker_status.sh
+```
+
+**Stop it gently.** Running tasks finish first:
+
+```bash
+touch queue/STOP
+```
+
+`worker_start.sh` removes the STOP file again.
+
+**If a worker hits its time limit mid-task,** that task stays in `queue/running/`. When no worker is alive, put it back:
+
+```bash
+mv queue/running/*.task queue/pending/
+```
+
 ## A. Ship code and split files (repeat whenever the code changes)
 
 `git archive` packs the **last commit**, so commit first.
