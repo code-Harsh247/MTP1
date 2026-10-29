@@ -23,7 +23,7 @@ Every dataset is **its own, separate experiment**. For each dataset:
 2. Split that dataset's training people into tasks (groups of new people).
 3. Train on the tasks one after another, measuring how much the model forgets the earlier groups.
 
-Models never move from one dataset to another. A result counts as general when it holds across the six datasets and the five model families.
+Models never move from one dataset to another. A result counts as general when it holds across the five datasets and the five model families.
 
 Because datasets never touch, a person who appears in two datasets causes no leak, so no cross-dataset overlap check is needed. Duplicate images *within* a dataset are already removed when its manifest is built.
 
@@ -53,9 +53,7 @@ Lessons carried over from v1 (details in [archive/v1/](archive/v1/)):
 | EarVN1.0 | 164 / 28,412 | many images per id, tiny images |
 | IITD-I | 221 / 793 | only 3–6 per id (median 3), grayscale |
 | UERC 2023 (public) | 1,310 / ≈250k | 3 sources; VGGFace2-derived ears are 94% of images; DGX only |
-| KinEar | *to inspect in R0* | on the DGX, never opened yet |
-
-VGGFace-Ear stays excluded, as in v1.
+VGGFace-Ear stays excluded, as in v1. **KinEar was dropped in R0** (2026-10-29): its photos are uncropped and it contains copied person folders, so it would need an ear detector and manual cleaning. See [notes/r0_benchmark.md](notes/r0_benchmark.md).
 
 ## Model families
 
@@ -96,7 +94,7 @@ This is the v1 protocol P1, applied to every dataset.
 
 | Phase | Work | Output |
 |---|---|---|
-| **R0. Freeze the benchmark** | Inspect KinEar on the DGX. Prepare IITD and KinEar caches. Build the split set for each of the six datasets (seeds 0–5). Fix the task count and held-out-image rule per dataset. Check that all five models train at the common input size (memory, speed per step). Measure the cost of one run per dataset. Commit everything under `benchmark/`, with split-file hashes. | `notes/r0_benchmark.md`, `benchmark/` |
+| **R0. Freeze the benchmark** | Prepare the IITD cache. Build the split set for each of the five datasets (seeds 0–5). Fix the task count and held-out-image rule per dataset. Check that all five models train at the common input size (memory, speed per step). Measure the cost of one run per dataset. Commit everything under `benchmark/`, with split-file hashes. | `notes/r0_benchmark.md`, `benchmark/` |
 | **R1. Joint baselines** (upper bound) | Train each model on all of a dataset's tasks at once. Tune each model's recipe on seed-0 validation with the **same small grid** (learning rate × epochs). | One tuned recipe per model and dataset; joint numbers |
 | **R2. Prove forgetting** (RQ1) | Naive sequential fine-tuning for every model × dataset. Reference continual-learning methods with the same budget: EWC, LwF, and replay (k = 5 images per person, or fewer where a dataset has fewer). **Pre-registered rule:** forgetting is shown for a (model, dataset) cell if, on every reported seed, rank-1 forgetting ≥ 0.10 **and** final average rank-1 ≤ joint − 0.10. | `notes/r2_forgetting.md`: forgetting curves for every model and dataset |
 | **R3. Does NL fix it?** (RQ2) | **NL arm, applied the same way to every family:** each block's pointwise MLP becomes 3 parallel copies of the pretrained weights, updated every 1, 16 and 256 steps (NL Eq. 74 + §7.3). At initialization this equals the plain model, and with all periods = 1 it stays equal (unit-tested). **Primary comparison:** X vs CMS-X, both with *naive* training (no replay). This is NL's own claim, and it is the realistic biometric case, since storing old ear images may not be allowed. **Secondary:** both with replay. **The decision rule is finalized and committed at the end of R2, before any R3 run.** | `notes/r3_nl_forgetting.md` |
@@ -115,18 +113,18 @@ This is the v1 protocol P1, applied to every dataset.
 ## Code changes needed (before R1)
 
 - `nlear/models.py`: a generic timm backbone for all five families, plus a generic CMS wrapper for pointwise MLPs or 1×1 convs.
-- `nlear/data/`: manifests, caches and splits for IITD and KinEar.
+- `nlear/data/`: the cache and seed-5 splits for IITD (and seed 5 for the others).
 - `nlear/continual.py`: the per-dataset task count and held-out-image rule (including the few-images case for IITD).
 - Tests: exactness of CMS at initialization for every family, plus the task-list and split invariants.
 
 ## Compute and priorities
 
-Rough size: 6 datasets × 5 models × 7 arms (joint, naive, EWC, LwF, replay, CMS, CMS + replay) × 3–5 seeds is about 700 runs, plus tuning. Most of them are on the small datasets and take minutes. UERC dominates the cost. R0 measures the real cost. If it is too much, scope is cut in this order:
+Rough size: 5 datasets × 5 models × 7 arms (joint, naive, EWC, LwF, replay, CMS, CMS + replay) × 3–5 seeds is about 600 runs, plus tuning. Most of them are on the small datasets and take minutes. UERC dominates the cost. R0 measures the real cost. If it is too much, scope is cut in this order:
 
 1. run EWC and LwF only on UERC and EarVN;
 2. run CMS + replay (the secondary NL comparison) only on UERC and EarVN.
 
-Never cut: the five model families, the six datasets, and the joint, naive and CMS arms. These are what the professor asked for.
+Never cut: the five model families, the five datasets, and the joint, naive and CMS arms. These are what the professor asked for.
 
 ## Questions for the professor
 

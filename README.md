@@ -1,6 +1,6 @@
 # NL-Ear
 
-Catastrophic forgetting in ear recognition across model families and six ear datasets, and whether Nested Learning (NL) fixes it. MTP project; see [plan.md](plan.md).
+Catastrophic forgetting in ear recognition across model families and five ear datasets, and whether Nested Learning (NL) fixes it. MTP project; see [plan.md](plan.md).
 
 Study v1 (NL for open-set ear recognition) is archived in [archive/v1/](archive/v1/) and tagged `v1-final`.
 

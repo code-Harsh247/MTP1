@@ -41,6 +41,22 @@ def tree(d, depth=0, max_depth=3, max_entries=6):
         print(f"{pad}... and {len(dirs) - max_entries} more folders")
 
 
+TEXT_EXTS = {".txt", ".csv", ".json", ".xml", ".md", ".tsv", ".yaml", ".yml"}
+
+
+def preview_text_files(ds, max_files=4, max_lines=12):
+    """First lines of small annotation/readme files: they often say how identities are encoded."""
+    texts = sorted(f for f in ds.rglob("*") if f.is_file() and f.suffix.lower() in TEXT_EXTS
+                   and f.stat().st_size < 5_000_000)
+    for f in texts[:max_files]:
+        print(f"--- {f.relative_to(ds).as_posix()} ({human(f.stat().st_size)}), first lines:")
+        with open(f, errors="replace") as fh:
+            for _, line in zip(range(max_lines), fh):
+                print("    " + line.rstrip()[:200])
+    if len(texts) > max_files:
+        print(f"--- ... and {len(texts) - max_files} more text files")
+
+
 def inspect(ds):
     imgs = [f for f in ds.rglob("*") if f.is_file() and f.suffix.lower() in IMAGE_EXTS]
     others = Counter(f.suffix.lower() for f in ds.rglob("*")
@@ -51,6 +67,7 @@ def inspect(ds):
     print(f"image extensions: {dict(Counter(f.suffix.lower() for f in imgs))}")
     if others:
         print(f"other files: {dict(others.most_common(8))}")
+        preview_text_files(ds)
     tree(ds)
     if imgs:
         print("random sample of image paths:")
