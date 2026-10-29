@@ -1,0 +1,42 @@
+# Study v2 benchmark (plan.md, R0): the per-dataset identity-incremental protocol.
+# Frozen at the R0 commit; every R1-R4 run uses exactly these settings.
+#
+#   n_tasks       training people are dealt into this many tasks (deterministic per seed)
+#   holdout_frac  share of each training person's images never trained on (seen-person tests)
+#   held_gallery  held-out gallery images per person; 0 = enroll with its training images
+#   seeds         0 = tuning (validation only); the rest are reported on test
+#
+# The split files themselves (data/<name>/splits_seed{s}.csv) and the task files written by
+# scripts/make_task_lists.py are not in git; benchmark/hashes_<name>.txt pins their contents.
+
+datasets:
+  ami:
+    config: configs/ami.yaml
+    n_tasks: 5           # 70 train people -> 14 per task; 7 images each -> 3 held out, 4 trained
+    holdout_frac: 0.2
+    held_gallery: 2
+    seeds: [0, 1, 2, 3, 4, 5]
+  awe:
+    config: configs/awe.yaml
+    n_tasks: 5           # 70 train people -> 14 per task; 10 images each -> 3 held out, 7 trained
+    holdout_frac: 0.2
+    held_gallery: 2
+    seeds: [0, 1, 2, 3, 4, 5]
+  iitd:
+    config: configs/iitd.yaml
+    n_tasks: 5           # ~155 train people -> ~31 per task; 3-6 images each -> 1 held-out probe
+    holdout_frac: 0.2
+    held_gallery: 0      # too few images for a separate gallery
+    seeds: [0, 1, 2, 3, 4, 5]
+  earvn:
+    config: configs/earvn.yaml
+    n_tasks: 5           # 115 train people -> 23 per task (as in v1 C1-C3b)
+    holdout_frac: 0.2
+    held_gallery: 2
+    seeds: [0, 1, 2, 3]
+  uerc:
+    config: configs/uerc.yaml   # DGX only: run make_task_lists.py there
+    n_tasks: 10          # 917 train people -> ~92 per task (as in v1 U3)
+    holdout_frac: 0.2
+    held_gallery: 2
+    seeds: [0, 1, 2, 3]

@@ -1,0 +1,7 @@
+ami: 5 tasks, holdout 0.2, held gallery 2
+seed 0: 70 train people, per task 14-14; train imgs 280, gallery imgs 140, held-out probes 70
+seed 1: 70 train people, per task 14-14; train imgs 280, gallery imgs 140, held-out probes 70
+seed 2: 70 train people, per task 14-14; train imgs 280, gallery imgs 140, held-out probes 70
+seed 3: 70 train people, per task 14-14; train imgs 280, gallery imgs 140, held-out probes 70
+seed 4: 70 train people, per task 14-14; train imgs 280, gallery imgs 140, held-out probes 70
+seed 5: 70 train people, per task 14-14; train imgs 280, gallery imgs 140, held-out probes 70

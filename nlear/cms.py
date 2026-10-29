@@ -40,14 +40,17 @@ class CMSScheduler:
         self._setup(groups, t, lr_pow)
 
     @classmethod
-    def for_vit(cls, model, head, t, periods, lr_pow=0.0):
-        """CMS inside a ViT (Option B): copy l of every block's CMSParallelMLP updates every
-        periods[l] steps; attention, embeddings, norms, aggregation weights, neck and head are fast."""
+    def for_body(cls, model, head, t, periods, lr_pow=0.0):
+        """CMS inside the backbone (v1 Option B, v2 R3): copy l of every CMSParallel module
+        (nlear.models.cms_targets) updates every periods[l] steps; everything else in the body
+        (attention, depthwise/3x3 convs, embeddings, norms, aggregation weights), the neck and
+        the head are fast."""
+        from .models import CMSParallel
         self = cls.__new__(cls)
-        blocks = [b for b in model.body.blocks if hasattr(b.mlp, "copies")]
-        if not blocks or len(blocks[0].mlp.copies) != len(periods):
-            raise ValueError("model has no CMSParallelMLP blocks with that many levels")
-        levels = [[p for b in blocks for p in b.mlp.copies[i].parameters()] for i in range(len(periods))]
+        mods = [m for m in model.body.modules() if isinstance(m, CMSParallel)]
+        if not mods or any(len(m.copies) != len(periods) for m in mods):
+            raise ValueError("model has no CMSParallel modules with that many levels")
+        levels = [[p for m in mods for p in m.copies[i].parameters()] for i in range(len(periods))]
         in_levels = {id(p) for lvl in levels for p in lvl}
         rest = [p for p in model.body.parameters() if id(p) not in in_levels]
         groups = [(per, lvl, t["lr_body"]) for per, lvl in zip(periods, levels)]
@@ -55,6 +58,8 @@ class CMSScheduler:
         groups.append((1, list(model.neck.parameters()) + list(head.parameters()), t["lr_head"]))
         self._setup(groups, t, lr_pow)
         return self
+
+    for_vit = for_body   # v1 name
 
     def _setup(self, groups, t, lr_pow):
         self.t = t

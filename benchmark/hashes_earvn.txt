@@ -1,0 +1,8 @@
+4dd1fe8d5bba1fe2ea7e2ad19ccc4224  data/earvn/splits_seed0.csv
+9742f4dab07249f180faae4f33b4a5a2  data/earvn/tasks_seed0.csv
+1fc68bf74af93eff6f8c884fae9921ac  data/earvn/splits_seed1.csv
+13467dc99c96d8829be1b4030f853f0c  data/earvn/tasks_seed1.csv
+87e17a45bb51f6535bdc153e4d50ffbe  data/earvn/splits_seed2.csv
+4f577ef6b67ff912f9d5f70e9998b377  data/earvn/tasks_seed2.csv
+a77ec39b727185393c5d923f5f83b490  data/earvn/splits_seed3.csv
+0ca228f4464266b27e5eaa6f43fcc593  data/earvn/tasks_seed3.csv

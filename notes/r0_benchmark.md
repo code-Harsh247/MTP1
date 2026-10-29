@@ -9,8 +9,9 @@
 | KinEar | **dropped** (2026-10-29, user decision): uncropped photos and copied folders; details below |
 | Common input size for the five models | **done: 128×96** (shapes check below) |
 | Pretrained weights load at 128×96 | **done** (all five, ImageNet-1k weights; check below) |
-| Splits for seeds 0–5, all five datasets | to do: AMI, AWE, EarVN, IITD and UERC have seeds 0–4 from v1; add seed 5 |
-| Task count and held-out rule per dataset | draft below |
+| Splits | **done locally**: seed 5 added for AMI, AWE, IITD (seeds 0–4 verified byte-identical to v1); EarVN already had 0–10; UERC keeps 0–3 on the DGX |
+| Task lists and held-out rule | **done locally** for AMI, AWE, IITD, EarVN (`benchmark/`); UERC must be generated on the DGX |
+| Generic backbone + CMS for all five families | **done** (`nlear/models.py`, `nlear/cms.py`, `tests/test_body_cms.py`) |
 | Cost of one run per dataset | to do, on the DGX |
 
 ## KinEar inspection (dataset dropped; kept for the record)
@@ -95,7 +96,7 @@ Setup: all 707 AMI images, 100 people, closed-set nearest neighbour by cosine, n
 
 **For the DGX:** it runs with `HF_HUB_OFFLINE=1`, so the four new weight sets (all except DeiT, which v1 already used there) must be copied into the DGX's Hugging Face cache before R1.
 
-## Draft: tasks and held-out images per dataset
+## Tasks and held-out images per dataset (`benchmark/tasks.yaml`)
 
 Held-out images of each training person are never trained on. They measure forgetting of learned people. v1's rule was 2 gallery images plus at least 1 probe (20% of the person's images).
 
@@ -108,3 +109,52 @@ Held-out images of each training person are never trained on. They measure forge
 | UERC | 917 | 10 | ~92 | 20% (v1 rule) | ~80% |
 
 IITD needs a small code change. Its held-out gallery comes from training images, because there are too few images to keep a separate one.
+
+### As built (2026-10-29, `scripts/make_task_lists.py`)
+
+Each task file is written next to its split file (`data/<name>/tasks_seed{s}.csv`, not in git). `benchmark/hashes_<name>.txt` pins the md5 of every split file and task file, and `make_task_lists.py --check` verifies them.
+
+Seed-0 summary (`benchmark/summary_<name>.txt` has every seed):
+
+| Dataset | Tasks × people | Train images | Gallery images | Held-out probes |
+|---|---|---|---|---|
+| AMI | 5 × 14 | 280 | 140 (held out) | 70 |
+| AWE | 5 × 14 | 490 | 140 (held out) | 70 |
+| IITD | 5 × 31 | 400 | 400 (= the training images) | 155 |
+| EarVN | 5 × 23 | 15,858 | 230 (held out) | 3,732 |
+
+**The IITD rule (`held_gallery: 0`).** This is new code in `nlear/continual.py`. Each IITD person holds out only 1 probe and is enrolled with its own training images (new column `cl_gallery`). Seen-person accuracy is therefore a little optimistic on IITD, because the gallery images were trained on. Forgetting is still measured correctly: it is the drop of that same score over later tasks. The default rule (2 held-out gallery images) is unchanged, and the v1 task splits are reproduced exactly.
+
+**Caution: AMI and AWE have tiny per-task tests.** Each task's seen-person test is only 14 people with 1 held-out probe each, so one probe moves rank-1 by 0.07. These datasets will need their extra seeds (4–5), and their per-task numbers should be read as noisy.
+
+## Generic backbone and CMS for all five families (2026-10-29)
+
+**Backbone.** `EmbeddingNet` takes any timm weight tag through one code path (`nlear/models.py: _timm`).
+- Stochastic depth is set to 0 for every family. Swin's timm default is 0.1; the others are 0.
+- MobileNetV3 keeps its 1×1 head conv, so its feature size is 1,280.
+- All five use the same ImageNet normalization as our data pipeline.
+- v1 configs (`resnet50`, bare ViT names) still build exactly what they built before.
+
+**CMS (`body_cms_levels`).** `nlear/models.py: cms_targets` lists the layers that are replicated:
+
+| Family | Layers replicated | Count |
+|---|---|---|
+| ResNet-50 | `conv1`, `conv3` of each bottleneck | 32 |
+| ConvNeXt-T | `mlp` of each block | 18 |
+| MobileNetV3 | `conv_pw` (+ `conv_pwl`) of each block | 29 |
+| DeiT-S, Swin-T | `mlp` of each block | 12 |
+
+`CMSScheduler.for_body` puts copy l of every replicated layer on update period l. Everything else in the body is updated every step.
+
+**Tests** (`tests/test_body_cms.py`, all 74 tests of the suite pass). For every family:
+- the CMS model computes exactly the plain model at initialization;
+- slow copies change only on their period;
+- with periods 1,1,1 the copies stay identical.
+
+## Still to do in R0
+
+1. **On the DGX:**
+   - copy the four new weight sets into the Hugging Face cache, plus the code and the small datasets' caches;
+   - generate UERC's task lists (`make_task_lists.py --only uerc`);
+   - time one short run per dataset and model.
+2. **The R0 freeze commit.**

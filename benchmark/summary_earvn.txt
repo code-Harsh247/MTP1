@@ -1,0 +1,5 @@
+earvn: 5 tasks, holdout 0.2, held gallery 2
+seed 0: 115 train people, per task 23-23; train imgs 15858, gallery imgs 230, held-out probes 3732
+seed 1: 115 train people, per task 23-23; train imgs 15866, gallery imgs 230, held-out probes 3734
+seed 2: 115 train people, per task 23-23; train imgs 15910, gallery imgs 230, held-out probes 3743
+seed 3: 115 train people, per task 23-23; train imgs 15967, gallery imgs 230, held-out probes 3761

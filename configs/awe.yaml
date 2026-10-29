@@ -10,7 +10,7 @@ data:
   img_size: [128, 96]                 # [h, w]; ears are ~1.4x taller than wide
 
 splits:
-  seeds: [0, 1, 2, 3, 4]
+  seeds: [0, 1, 2, 3, 4, 5]
   min_images: 4
   frac_train: 0.70
   frac_val: 0.10

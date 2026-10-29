@@ -6,9 +6,14 @@ already-learned people can be measured; the rest are training images for its tas
 Val/test identities are untouched: they stay the unseen-people open-set protocol.
 
 Columns added to the split DataFrame:
-    task     0..n_tasks-1 for train identities, -1 for val/test
-    cl_role  train | held_gallery | held_probe   (train identities)
-             eval                                (val/test rows; their own role column applies)
+    task        0..n_tasks-1 for train identities, -1 for val/test
+    cl_role     train | held_gallery | held_probe   (train identities)
+                eval                                (val/test rows; their own role column applies)
+    cl_gallery  True for the rows that enroll a train identity when its forgetting is measured
+
+Few-image datasets (IITD: median 3 images per person) cannot spare separate held-out gallery
+images. With n_gallery=0 a person's own *training* images are its gallery and only probes are
+held out, so A[t][j] still measures how well held-out probes match what the model learned.
 """
 import numpy as np
 import pandas as pd
@@ -33,16 +38,21 @@ def make_task_splits(df, n_tasks=5, holdout_frac=0.2, n_gallery=2, seed=0):
             raise ValueError(f"identity {ident} has too few images ({len(idx)}) to hold out {n_hold}")
         df.loc[idx[:n_gallery], "cl_role"] = "held_gallery"
         df.loc[idx[n_gallery:n_hold], "cl_role"] = "held_probe"
-    check_task_splits(df, n_tasks)
+    gallery_role = "held_gallery" if n_gallery > 0 else "train"
+    df["cl_gallery"] = (df["split"] == "train") & (df["cl_role"] == gallery_role)
+    check_task_splits(df, n_tasks, n_gallery)
     return df
 
 
-def check_task_splits(df, n_tasks):
+def check_task_splits(df, n_tasks, n_gallery=2):
     tr = df[df["split"] == "train"]
     assert set(tr["task"]) == set(range(n_tasks)), "every task needs identities"
     assert (df.loc[df["split"] != "train", "task"] == -1).all(), "val/test rows must not have a task"
     assert (tr.groupby("identity")["task"].nunique() == 1).all(), "an identity is in two tasks"
-    for role in ("train", "held_gallery", "held_probe"):
+    roles = ("train", "held_gallery", "held_probe") if n_gallery > 0 else ("train", "held_probe")
+    if n_gallery == 0:
+        assert not (tr["cl_role"] == "held_gallery").any(), "n_gallery=0 must not hold out gallery images"
+    for role in roles:
         has = set(tr.loc[tr["cl_role"] == role, "identity"])
         assert has == set(tr["identity"]), f"some train identity lacks {role} images"
 
@@ -50,13 +60,13 @@ def check_task_splits(df, n_tasks):
 def seen_task_metrics(emb, df, task, unknown_mask):
     """Open-set identification of ONE task's people from their held-out images.
 
-    Gallery: held_gallery images of the task's identities. Known probes: their held_probe
-    images. Unknown probes: a fixed set of never-trained people (unknown_mask rows), the same
+    Gallery: the cl_gallery images of the task's identities (held-out gallery images, or the
+    training images for few-image datasets). Known probes: their held_probe images. Unknown probes: a fixed set of never-trained people (unknown_mask rows), the same
     for every task and every stage, so A[t, j] is comparable across t.
     """
     t = df["task"].to_numpy() == task
     role = df["cl_role"].to_numpy()
-    g = np.where(t & (role == "held_gallery"))[0]
+    g = np.where(t & df["cl_gallery"].to_numpy())[0]
     pk = np.where(t & (role == "held_probe"))[0]
     pu = np.where(unknown_mask)[0]
     p = np.concatenate([pk, pu])

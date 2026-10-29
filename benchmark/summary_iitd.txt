@@ -1,0 +1,7 @@
+iitd: 5 tasks, holdout 0.2, held gallery 0
+seed 0: 155 train people, per task 31-31; train imgs 400, gallery imgs 400, held-out probes 155
+seed 1: 155 train people, per task 31-31; train imgs 381, gallery imgs 381, held-out probes 155
+seed 2: 155 train people, per task 31-31; train imgs 401, gallery imgs 401, held-out probes 155
+seed 3: 155 train people, per task 31-31; train imgs 404, gallery imgs 404, held-out probes 155
+seed 4: 155 train people, per task 31-31; train imgs 400, gallery imgs 400, held-out probes 155
+seed 5: 155 train people, per task 31-31; train imgs 407, gallery imgs 407, held-out probes 155

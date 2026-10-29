@@ -1,0 +1,12 @@
+b9bede0afb297bee85c35a2c1540e3c5  data/iitd/splits_seed0.csv
+5de3f1a56b76c766b2413f9b2ddce806  data/iitd/tasks_seed0.csv
+5e2fb00b47d7083bae41707bf271ec0b  data/iitd/splits_seed1.csv
+5910e71f287edf12d4e16954c641c722  data/iitd/tasks_seed1.csv
+8c1a08bc40f82190206de6bb203395cb  data/iitd/splits_seed2.csv
+520d20fa1a955df383f3ae59dd08f3cf  data/iitd/tasks_seed2.csv
+0bd59554e21f52bf73bc05fa5fd03583  data/iitd/splits_seed3.csv
+552ff5dff391a0fc25c135c3d0d71771  data/iitd/tasks_seed3.csv
+8d6854eb77109409a727d4a56a397807  data/iitd/splits_seed4.csv
+4b7bfb656511676d199a7e30fd1dc742  data/iitd/tasks_seed4.csv
+8f363d7c97c23ecc5efef4663ddde08e  data/iitd/splits_seed5.csv
+9e3b6993608bafd10508e4ae3ef7f0af  data/iitd/tasks_seed5.csv

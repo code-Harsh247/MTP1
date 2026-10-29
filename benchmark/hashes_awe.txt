@@ -1,0 +1,12 @@
+623fa566f5259449e79f688882a705d3  data/awe/splits_seed0.csv
+dca683bcda44c540e1e3bef55b87bc1b  data/awe/tasks_seed0.csv
+0b295f695605f906470cd91dc478438d  data/awe/splits_seed1.csv
+ad7e3a80e8969822a874affbfc31b8c2  data/awe/tasks_seed1.csv
+4e8fe17945f05118bf778a08275261c5  data/awe/splits_seed2.csv
+b89baf96d2d399420e947f31f78845a2  data/awe/tasks_seed2.csv
+781ee8f4431d179f433a60b61b76b1b9  data/awe/splits_seed3.csv
+adc2b3ee0a6cd842da29f7cc4b0da6d1  data/awe/tasks_seed3.csv
+198253f52b7448c6be4e95a0bff2a154  data/awe/splits_seed4.csv
+a014129c264a2ff94518469f48149b07  data/awe/tasks_seed4.csv
+f122c279ed44b76b69ccf94d9fa26ef3  data/awe/splits_seed5.csv
+5304da9f13a6ae46ca326bc96e181efb  data/awe/tasks_seed5.csv

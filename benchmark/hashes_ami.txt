@@ -1,0 +1,12 @@
+cc7560ea779a0ab56e861bb1e6eaa4ed  data/ami/splits_seed0.csv
+87cc46a2eb05d9de4bc61772e88a07e8  data/ami/tasks_seed0.csv
+801e4124a1f23ebe7e43e3a1aa7f726c  data/ami/splits_seed1.csv
+66748219738476a6ef08b2fd076f0651  data/ami/tasks_seed1.csv
+f7af1db7caf7e60fc3964f90b8555637  data/ami/splits_seed2.csv
+93d8b76dfe837bc175b92a2111d16add  data/ami/tasks_seed2.csv
+a3f8cc0055857fd18bd8a1334c4ca73c  data/ami/splits_seed3.csv
+77fd656bc172d55aed7ba58bac917b34  data/ami/tasks_seed3.csv
+77ec167c35525c94c2c27f4db806f75c  data/ami/splits_seed4.csv
+c7ea22f9b5dd2bec8c8a6857ff56dc6f  data/ami/tasks_seed4.csv
+1ec4c5cc8429d41a81c621ead386b8a7  data/ami/splits_seed5.csv
+a9cb508146df3796ba9b17be54f73e05  data/ami/tasks_seed5.csv

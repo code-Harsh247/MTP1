@@ -76,7 +76,7 @@ def make_optimizer(model, head, t):
 
 def evaluate_stage(model, images, df, device, n_tasks):
     """Embed held-out + val/test rows once; return (A_row, U) for this stage."""
-    need = df["cl_role"].isin(["held_gallery", "held_probe"]) | df["split"].isin(["val", "test"])
+    need = df["cl_gallery"] | (df["cl_role"] == "held_probe") | df["split"].isin(["val", "test"])
     sub = df[need].reset_index(drop=True)
     emb = embed(model, images, torch.tensor(sub["row"].to_numpy()), device).cpu()
     unknown = ((sub["split"] == "test") & (sub["known"] == 0) & (sub["role"] == "probe")).to_numpy()
@@ -95,6 +95,8 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--n-tasks", type=int, default=5)
     ap.add_argument("--holdout", type=float, default=0.2)
+    ap.add_argument("--held-gallery", type=int, default=2,
+                    help="held-out gallery images per train person; 0 = enroll with its training images (IITD)")
     ap.add_argument("--steps-per-task", type=int, default=250)
     ap.add_argument("--lam", type=float, default=1.0, help="EWC / LwF strength")
     ap.add_argument("--ewc-gamma", type=float, default=1.0, help="online EWC Fisher decay")
@@ -129,7 +131,7 @@ def main():
                                       Path(d["manifest"]).parent / f"cache_{h}x{w}.pt")
     df = pd.read_csv(d["splits"].format(seed=args.seed), dtype={"identity": str, "path": str})
     df["row"] = df["path"].map(row_of)
-    df = make_task_splits(df, args.n_tasks, args.holdout, seed=args.seed)
+    df = make_task_splits(df, args.n_tasks, args.holdout, n_gallery=args.held_gallery, seed=args.seed)
     df.to_csv(run_dir / "task_splits.csv", index=False)
 
     classes = sorted(df.loc[df["split"] == "train", "identity"].unique())

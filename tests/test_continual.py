@@ -8,11 +8,11 @@ from nlear.data.splits import make_splits
 from nlear.models import ArcFace
 
 
-def _split_df(n_ids=40, per_id=12, seed=0):
+def _split_df(n_ids=40, per_id=12, seed=0, **split_kw):
     m = pd.DataFrame({"path": [f"{i:03d}/{j}.jpg" for i in range(n_ids) for j in range(per_id)],
                       "identity": [f"{i:03d}" for i in range(n_ids) for _ in range(per_id)],
                       "source": "x"})
-    return make_splits(m, seed=seed)
+    return make_splits(m, seed=seed, **split_kw)
 
 
 def test_task_splits_are_disjoint_complete_and_deterministic():
@@ -70,3 +70,32 @@ def test_arcface_active_mask_excludes_unseen_classes():
     loss.backward()
     # unseen classes get no gradient through the softmax
     assert head.weight.grad[3:].abs().sum() == 0
+
+
+def test_default_gallery_is_the_held_out_gallery():
+    a = make_task_splits(_split_df(), n_tasks=4, holdout_frac=0.25, seed=1)
+    tr = a[a["split"] == "train"]
+    assert (tr["cl_gallery"] == (tr["cl_role"] == "held_gallery")).all()
+    assert not a.loc[a["split"] != "train", "cl_gallery"].any()
+
+
+def test_few_image_rule_enrolls_with_training_images():
+    # IITD-like: 3 images per person -> 1 held-out probe, 2 training images that are also the gallery
+    df = _split_df(n_ids=40, per_id=3, min_images=3, n_gallery=1)
+    a = make_task_splits(df, n_tasks=5, holdout_frac=0.2, n_gallery=0, seed=0)
+    tr = a[a["split"] == "train"]
+    per = tr.groupby(["identity", "cl_role"]).size().unstack(fill_value=0)
+    assert "held_gallery" not in per.columns
+    assert (per["held_probe"] == 1).all() and (per["train"] == 2).all()
+    assert (tr["cl_gallery"] == (tr["cl_role"] == "train")).all()
+
+
+def test_seen_task_metrics_with_training_image_gallery():
+    from nlear.continual import seen_task_metrics
+    df = _split_df(n_ids=40, per_id=3, min_images=3, n_gallery=1)
+    a = make_task_splits(df, n_tasks=2, holdout_frac=0.2, n_gallery=0, seed=0).reset_index(drop=True)
+    ids = sorted(a["identity"].unique())
+    emb = torch.eye(len(ids))[[ids.index(i) for i in a["identity"]]]   # perfect embedding: one axis per person
+    unknown = ((a["split"] == "test") & (a["known"] == 0)).to_numpy()
+    m = seen_task_metrics(emb, a, 0, unknown)
+    assert m["rank1"] == pytest.approx(1.0)

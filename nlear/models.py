@@ -20,21 +20,32 @@ def is_vit(arch):
     return arch.startswith(("deit", "vit"))
 
 
-def _vit(name, pretrained, img_size):
-    """timm ViT/DeiT as a feature extractor at the ear input size (positional embeddings resampled)."""
+def is_timm(arch):
+    """Study v2 names models by their timm weight tag (e.g. "convnext_tiny.fb_in1k"); v1's
+    bare "resnet18"/"resnet50" still mean the torchvision models, and bare ViT names timm."""
+    return "." in arch or is_vit(arch)
+
+
+def _timm(name, pretrained, img_size):
+    """Any timm backbone as a feature extractor at the ear input size. Models with position
+    embeddings or attention windows (ViT, DeiT, Swin) are built for that size, and timm resamples
+    their pretrained tables. Stochastic depth is off for every family (Swin's default is 0.1)."""
     import timm
-    net = timm.create_model(name, pretrained=pretrained, num_classes=0, img_size=tuple(img_size))
-    return net, net.num_features
+    kw = {"img_size": tuple(img_size)} if name.startswith(("deit", "vit", "swin")) else {}
+    net = timm.create_model(name, pretrained=pretrained, num_classes=0, drop_path_rate=0.0, **kw)
+    # MobileNetV3 keeps its 1x1 head conv: its output is head_hidden_size (1280), not num_features (960).
+    return net, getattr(net, "head_hidden_size", None) or net.num_features
 
 
-class CMSParallelMLP(nn.Module):
-    """CMS for a pretrained Transformer MLP ([NL] Sec. 7.3 + independent variant, Eq. 74).
+class CMSParallel(nn.Module):
+    """CMS for a pretrained layer ([NL] Sec. 7.3 + independent variant, Eq. 74).
 
-    `levels` copies of the pretrained MLP, combined by a learnable weighted sum (softmax of
-    logits, initialised uniform). At initialisation every copy equals the pretrained MLP, so the
-    module computes exactly what the pretrained block did. The copies differ only through their
-    update frequencies (nlear.cms.CMSScheduler.for_vit): if all copies updated every step they
-    would receive identical (Adam-normalised) updates and stay identical, i.e. a plain ViT.
+    `levels` copies of the pretrained module (a Transformer/ConvNeXt MLP, or a CNN's 1x1 conv),
+    combined by a learnable weighted sum (softmax of logits, initialised uniform). At
+    initialisation every copy equals the pretrained module, so this computes exactly what it
+    did. The copies differ only through their update frequencies (nlear.cms.CMSScheduler.for_body):
+    if all copies updated every step they would receive identical (Adam-normalised) updates and
+    stay identical, i.e. the plain model.
     """
 
     def __init__(self, mlp, levels=3):
@@ -45,6 +56,35 @@ class CMSParallelMLP(nn.Module):
     def forward(self, x):
         w = torch.softmax(self.agg_logits, 0)
         return sum(w[i] * m(x) for i, m in enumerate(self.copies))
+
+
+CMSParallelMLP = CMSParallel   # v1 name (Option B)
+
+
+def cms_targets(body):
+    """(parent, attribute) of every pointwise layer that CMS replicates, per family (plan.md R3):
+    the MLP of each Transformer / Swin / ConvNeXt block, the 1x1 convs of each ResNet bottleneck,
+    and the expand / project 1x1 convs of each MobileNet block."""
+    attrs = {"Block": ("mlp",), "SwinTransformerBlock": ("mlp",), "ConvNeXtBlock": ("mlp",),
+             "Bottleneck": ("conv1", "conv3"), "InvertedResidual": ("conv_pw", "conv_pwl"),
+             "DepthwiseSeparableConv": ("conv_pw",)}
+    out = []
+    for m in body.modules():
+        for a in attrs.get(type(m).__name__, ()):
+            layer = getattr(m, a)
+            if isinstance(layer, nn.Conv2d) and layer.kernel_size != (1, 1):
+                raise ValueError(f"{type(m).__name__}.{a} is not a 1x1 conv")
+            out.append((m, a))
+    return out
+
+
+def apply_body_cms(body, levels):
+    targets = cms_targets(body)
+    if not targets:
+        raise ValueError(f"no CMS targets in {type(body).__name__}")
+    for parent, attr in targets:
+        setattr(parent, attr, CMSParallel(getattr(parent, attr), levels))
+    return len(targets)
 
 
 class CMSBlock(nn.Module):
@@ -87,15 +127,16 @@ class EmbeddingNet(nn.Module):
     neck="linear": dropout, linear, BN (the Phase 2 baseline); neck="cms": CMSNeck."""
 
     def __init__(self, arch="resnet18", emb_dim=512, pretrained=True, dropout=0.0,
-                 neck="linear", cms_levels=3, cms_mult=2, img_size=(128, 96), vit_cms_levels=0):
+                 neck="linear", cms_levels=3, cms_mult=2, img_size=(128, 96), vit_cms_levels=0,
+                 body_cms_levels=0):
         super().__init__()
-        if is_vit(arch):
-            self.body, feat_dim = _vit(arch, pretrained, img_size)
-            if vit_cms_levels:
-                for blk in self.body.blocks:
-                    blk.mlp = CMSParallelMLP(blk.mlp, vit_cms_levels)
+        body_cms_levels = body_cms_levels or vit_cms_levels     # v1 Option B flag = the same thing
+        if is_timm(arch):
+            self.body, feat_dim = _timm(arch, pretrained, img_size)
         else:
             self.body, feat_dim = _resnet(arch, pretrained)
+        if body_cms_levels:
+            apply_body_cms(self.body, body_cms_levels)
         if neck == "cms":
             self.neck = CMSNeck(feat_dim, emb_dim, cms_levels, cms_mult, dropout)
         else:
