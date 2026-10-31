@@ -99,3 +99,46 @@ def test_seen_task_metrics_with_training_image_gallery():
     unknown = ((a["split"] == "test") & (a["known"] == 0)).to_numpy()
     m = seen_task_metrics(emb, a, 0, unknown)
     assert m["rank1"] == pytest.approx(1.0)
+
+
+def test_frozen_tasks_load_and_reject_changed_files(tmp_path):
+    import hashlib
+    from nlear.continual import load_frozen_tasks
+    df = make_task_splits(_split_df(), n_tasks=4, seed=1)
+    split_f, task_f = tmp_path / "splits_seed1.csv", tmp_path / "tasks_seed1.csv"
+    _split_df().to_csv(split_f, index=False)
+    df.to_csv(task_f, index=False)
+    (tmp_path / "hashes_x.txt").write_text("".join(
+        f"{hashlib.md5(f.read_bytes()).hexdigest()}  {f.name}\n" for f in (split_f, task_f)))
+    template = str(tmp_path / "splits_seed{seed}.csv")
+    loaded = load_frozen_tasks("x", template, 1, 4, 2, bench_dir=tmp_path)
+    assert list(loaded["task"]) == list(df["task"]) and list(loaded["identity"]) == list(df["identity"])
+    with open(task_f, "a") as f:
+        f.write("\n")
+    with pytest.raises(ValueError, match="frozen hash"):
+        load_frozen_tasks("x", template, 1, 4, 2, bench_dir=tmp_path)
+    with pytest.raises(ValueError, match="not in the frozen"):
+        load_frozen_tasks("x", str(tmp_path / "splits_s{seed}.csv"), 1, 4, 2, bench_dir=tmp_path)
+
+
+def test_r1_selection_rule():
+    import importlib.util
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[1] / "scripts" / "r1_select.py"
+    spec = importlib.util.spec_from_file_location("r1_select", p)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+
+    def r(rank1, auroc, steps=60, lr=1e-4):
+        return dict(rank1=rank1, auroc=auroc, steps=steps, lr=lr)
+
+    best = r(0.90, 0.70)
+    assert m.pick([r(0.80, 0.99), best]) is best                       # rank-1 decides
+    near = r(0.897, 0.75)
+    assert m.pick([best, near]) is near                                # within 0.005: AUROC decides
+    short = r(0.90, 0.70, steps=60)
+    assert m.pick([r(0.90, 0.70, steps=160), short]) is short          # tie: fewer steps
+    low = r(0.90, 0.70, lr=3e-5)
+    assert m.pick([r(0.90, 0.70, lr=3e-4), low]) is low                # tie: lower lr
+    assert m.pick([r(float("nan"), 0.9), best]) is best                # non-finite is not eligible
+    assert m.pick([]) is None

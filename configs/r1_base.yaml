@@ -1,0 +1,16 @@
+# Study v2 (plan.md R1): one recipe for all five families. Only arch, lr_body and the steps per
+# task change (benchmark/r1_grid.yaml). AdamW with the ViT/ConvNeXt-standard weight decay; the
+# augmentation, dropout and ArcFace settings are the ones v1 used. fp32 for every arm.
+train:
+  arch: resnet50.tv2_in1k     # always overridden by --arch
+  pretrained: true
+  emb_dim: 512
+  batch_size: 64
+  lr_body: 1.0e-4             # always overridden by --lr-body
+  lr_head: 1.0e-3
+  weight_decay: 0.05
+  dropout: 0.3
+  aug: {degrees: 20.0, translate: 0.1, scale: [0.8, 1.2], jitter: 0.4}
+  arcface_s: 30.0
+  arcface_m: 0.3
+  amp: false

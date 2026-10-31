@@ -30,7 +30,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.cl_methods import EWC, LwF, Replay  # noqa: E402
 from nlear.cms import CMSScheduler  # noqa: E402
-from nlear.continual import continual_summary, make_task_splits, seen_task_metrics  # noqa: E402
+from nlear.continual import (continual_summary, load_frozen_tasks, make_task_splits,  # noqa: E402
+                             seen_task_metrics)
 from nlear.data.cache import GPUAugment, load_image_cache  # noqa: E402
 from nlear.data.manifest import load_manifest  # noqa: E402
 from nlear.engine import embed, train_steps  # noqa: E402
@@ -60,8 +61,8 @@ def default_name(args):
     if args.cms_periods:
         name += (f"_cms{args.cms_periods.replace(',', '-')}_b{args.cms_body_period}"
                  f"_p{args.cms_lr_pow:g}")
-    elif args.vit_cms_periods:
-        name += f"_vitcms{args.vit_cms_periods.replace(',', '-')}_p{args.vit_cms_lr_pow:g}"
+    elif args.body_cms_periods:
+        name += f"_bodycms{args.body_cms_periods.replace(',', '-')}_p{args.body_cms_lr_pow:g}"
     elif args.fp32:
         name += "_fp32"   # CMS runs are always fp32; mark it only where it differs from the default
     return name
@@ -109,14 +110,30 @@ def main():
     ap.add_argument("--cms-mult", type=int, default=2, help="CMS block hidden width multiplier")
     ap.add_argument("--fp32", action="store_true",
                     help="train in fp32 (no AMP), so non-CMS arms match the CMS arms' precision (C3b)")
-    ap.add_argument("--vit-cms-periods", default="",
-                    help="Option B: CMS inside a ViT, update period per MLP copy, e.g. 1,16,256")
-    ap.add_argument("--vit-cms-lr-pow", type=float, default=0.0, help="ViT-CMS: slow lr = lr * period**pow")
+    ap.add_argument("--body-cms-periods", "--vit-cms-periods", default="",
+                    help="CMS inside the backbone (any family): update period per copy, e.g. 1,16,256")
+    ap.add_argument("--body-cms-lr-pow", "--vit-cms-lr-pow", type=float, default=0.0,
+                    help="body CMS: slow lr = lr * period**pow")
+    ap.add_argument("--bench", default="", help="study v2: dataset name in benchmark/tasks.yaml; uses its "
+                    "frozen task file (hash-checked), and its n_tasks and held-out rule")
+    ap.add_argument("--arch", default="", help="override train.arch")
+    ap.add_argument("--lr-body", type=float, help="override train.lr_body")
+    ap.add_argument("--no-save", action="store_true", help="metrics only: no model.pt or task_splits.csv")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", default="runs")
     args = ap.parse_args()
     dcfg, tcfg = yaml.safe_load(open(args.data)), yaml.safe_load(open(args.train))
     d, t = dcfg["data"], tcfg["train"]
+    if args.arch:
+        t["arch"] = args.arch
+    if args.lr_body is not None:
+        t["lr_body"] = args.lr_body
+    bench = {}
+    if args.bench:
+        bench = yaml.safe_load(open("benchmark/tasks.yaml"))["datasets"][args.bench]
+        if args.seed not in bench["seeds"]:
+            raise ValueError(f"seed {args.seed} is not in the frozen benchmark of {args.bench}")
+        args.n_tasks = bench["n_tasks"]
     torch.manual_seed(args.seed)
     gen = torch.Generator().manual_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -129,10 +146,15 @@ def main():
     h, w = d["img_size"]
     images, row_of = load_image_cache(manifest, d["root"], d["img_size"],
                                       Path(d["manifest"]).parent / f"cache_{h}x{w}.pt")
-    df = pd.read_csv(d["splits"].format(seed=args.seed), dtype={"identity": str, "path": str})
-    df["row"] = df["path"].map(row_of)
-    df = make_task_splits(df, args.n_tasks, args.holdout, n_gallery=args.held_gallery, seed=args.seed)
-    df.to_csv(run_dir / "task_splits.csv", index=False)
+    if bench:
+        df = load_frozen_tasks(args.bench, d["splits"], args.seed, bench["n_tasks"], bench["held_gallery"])
+        df["row"] = df["path"].map(row_of)
+    else:
+        df = pd.read_csv(d["splits"].format(seed=args.seed), dtype={"identity": str, "path": str})
+        df["row"] = df["path"].map(row_of)
+        df = make_task_splits(df, args.n_tasks, args.holdout, n_gallery=args.held_gallery, seed=args.seed)
+    if not args.no_save:
+        df.to_csv(run_dir / "task_splits.csv", index=False)
 
     classes = sorted(df.loc[df["split"] == "train", "identity"].unique())
     label_of = {c: i for i, c in enumerate(classes)}
@@ -146,11 +168,11 @@ def main():
           f"{int(df['cl_role'].str.startswith('held').sum())} imgs")
 
     periods = [int(x) for x in args.cms_periods.split(",")] if args.cms_periods else []
-    vit_periods = [int(x) for x in args.vit_cms_periods.split(",")] if args.vit_cms_periods else []
+    body_periods = [int(x) for x in args.body_cms_periods.split(",")] if args.body_cms_periods else []
     model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0),
                          neck="cms" if periods else "linear", cms_levels=len(periods) or 3,
                          cms_mult=args.cms_mult, img_size=d["img_size"],
-                         vit_cms_levels=len(vit_periods)).to(device)
+                         body_cms_levels=len(body_periods)).to(device)
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
     cms = None
     if periods:
@@ -159,10 +181,10 @@ def main():
                            args.cms_lr_pow)
         print(f"CMS neck: block periods {periods}, body {args.cms_body_period}, proj "
               f"{args.cms_proj_period}, lr_pow {args.cms_lr_pow}; fp32")
-    if vit_periods:
+    if body_periods:
         t["amp"] = False
-        cms = CMSScheduler.for_vit(model, head, t, vit_periods, args.vit_cms_lr_pow)
-        print(f"ViT-CMS: MLP copy periods {vit_periods}, lr_pow {args.vit_cms_lr_pow}; fp32")
+        cms = CMSScheduler.for_body(model, head, t, body_periods, args.body_cms_lr_pow)
+        print(f"Body CMS: copy periods {body_periods}, lr_pow {args.body_cms_lr_pow}; fp32")
     if args.fp32:
         t["amp"] = False
     scaler = torch.amp.GradScaler(enabled=t["amp"] and device.type == "cuda")
@@ -215,7 +237,8 @@ def main():
     if cms:
         summary["cms_updates_per_period"] = {str(k): v for k, v in cms.n_updates.items()}
     json.dump({"log": log, "summary": summary, "A": A, "U": U}, open(run_dir / "metrics.json", "w"), indent=1)
-    torch.save({"model": model.state_dict()}, run_dir / "model.pt")
+    if not args.no_save:
+        torch.save({"model": model.state_dict()}, run_dir / "model.pt")
     print("SUMMARY " + " ".join(f"{k}={v:.4f}" for k, v in summary.items() if isinstance(v, float)))
     print(f"saved to {run_dir}")
 

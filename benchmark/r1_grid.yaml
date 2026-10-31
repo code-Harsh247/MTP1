@@ -1,0 +1,22 @@
+# Study v2, R1 tuning grid and selection rule. Committed before any tuning run.
+#
+# Every model x dataset gets the same 6-point grid: 3 body learning rates x 2 training lengths.
+# Runs: joint training on seed 0 with configs/r1_base.yaml. Joint gets n_tasks x steps_per_task
+# in total. Length is in steps per dataset: "epochs" would give AMI a single step per epoch.
+# Small-set lengths come from v1 (joint 300 steps was best there), EarVN and UERC from v1's
+# 5 and 4 epochs, each with a longer alternative.
+#
+# Selection (scripts/r1_select.py), per model x dataset, on seed 0 only:
+#   1. main score: final rank-1 on the held-out images of the people trained on
+#      (summary.final_avg_rank1), the study's primary metric;
+#   2. among configs within 0.005 of the best: highest AUROC on unseen validation people
+#      (summary.final_U_val.auroc);
+#   3. still tied: fewer steps, then lower learning rate.
+# A run that failed or gave non-finite numbers is not eligible.
+lr_body: [3.0e-5, 1.0e-4, 3.0e-4]
+steps_per_task:
+  ami: [60, 160]
+  awe: [60, 160]
+  iitd: [60, 160]
+  earvn: [250, 500]
+  uerc: [870, 1740]

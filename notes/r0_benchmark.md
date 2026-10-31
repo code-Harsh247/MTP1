@@ -221,5 +221,7 @@ Every R1–R4 run must use these unchanged:
 
 ## Known gaps to close at the start of R1
 
-1. `scripts/train_continual.py` still rebuilds tasks with `make_task_splits` instead of reading the frozen task files. The function is deterministic, but R1 should load the task file and verify its hash, so a mismatch fails loudly.
-2. The trainer's flags still use v1 names (`--vit-cms-periods`), and there are no per-dataset settings from `benchmark/tasks.yaml` yet (for example `--held-gallery 0` for IITD).
+Both closed in R1 (`--bench`, `--body-cms-periods`; see [r1_joint.md](r1_joint.md)):
+
+1. `scripts/train_continual.py` rebuilt tasks instead of reading the frozen task files.
+2. The trainer's flags used v1 names, and it had no per-dataset settings from `benchmark/tasks.yaml`.

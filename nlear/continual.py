@@ -15,6 +15,9 @@ Few-image datasets (IITD: median 3 images per person) cannot spare separate held
 images. With n_gallery=0 a person's own *training* images are its gallery and only probes are
 held out, so A[t][j] still measures how well held-out probes match what the model learned.
 """
+import hashlib
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -55,6 +58,25 @@ def check_task_splits(df, n_tasks, n_gallery=2):
     for role in roles:
         has = set(tr.loc[tr["cl_role"] == role, "identity"])
         assert has == set(tr["identity"]), f"some train identity lacks {role} images"
+
+
+def load_frozen_tasks(name, splits_template, seed, n_tasks, n_gallery, bench_dir="benchmark"):
+    """Study v2: read the frozen task file of a dataset and seed, after checking that it and its
+    split file have the md5 pinned in benchmark/hashes_<name>.txt. Any mismatch is an error."""
+    split_file = Path(splits_template.format(seed=seed))
+    task_file = split_file.with_name(split_file.name.replace("splits_", "tasks_", 1))
+    pinned = {}
+    for line in (Path(bench_dir) / f"hashes_{name}.txt").read_text().splitlines():
+        digest, fname = line.split()
+        pinned[fname] = digest
+    for f in (split_file, task_file):
+        if f.name not in pinned:
+            raise ValueError(f"{f.name} is not in the frozen benchmark of {name}")
+        if hashlib.md5(f.read_bytes()).hexdigest() != pinned[f.name]:
+            raise ValueError(f"{f} differs from its frozen hash in hashes_{name}.txt")
+    df = pd.read_csv(task_file, dtype={"identity": str, "path": str})
+    check_task_splits(df, n_tasks, n_gallery)
+    return df
 
 
 def seen_task_metrics(emb, df, task, unknown_mask):
