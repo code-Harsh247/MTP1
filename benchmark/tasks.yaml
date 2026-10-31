@@ -9,6 +9,9 @@
 # The split files themselves (data/<name>/splits_seed{s}.csv) and the task files written by
 # scripts/make_task_lists.py are not in git; benchmark/hashes_<name>.txt pins their contents
 # (by file name, so the same hash file checks the laptop copy and the DGX copy).
+#
+# Training budget: counted in optimizer steps. R1 picks steps per task per model x dataset on
+# seed-0 validation; all sequential arms use it, and joint gets n_tasks x that in total.
 
 datasets:
   ami:

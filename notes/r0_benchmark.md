@@ -1,6 +1,6 @@
-# R0: freezing the benchmark (in progress)
+# R0: freezing the benchmark (frozen)
 
-*Started 2026-10-29. Nothing here is frozen until the final R0 commit, which adds `benchmark/` with split-file hashes.*
+*Started 2026-10-29, frozen 2026-10-31 by the commit that adds this line. See "What is frozen" at the end.*
 
 ## Status
 
@@ -10,9 +10,9 @@
 | Common input size for the five models | **done: 128×96** (shapes check below) |
 | Pretrained weights load at 128×96 | **done** (all five, ImageNet-1k weights; check below) |
 | Splits | **done locally**: seed 5 added for AMI, AWE, IITD (seeds 0–4 verified byte-identical to v1); EarVN already had 0–10; UERC keeps 0–3 on the DGX |
-| Task lists and held-out rule | **done locally** for AMI, AWE, IITD, EarVN (`benchmark/`); UERC must be generated on the DGX |
+| Task lists and held-out rule | **done** for all five datasets (`benchmark/`); UERC's were built on the DGX |
 | Generic backbone + CMS for all five families | **done** (`nlear/models.py`, `nlear/cms.py`, `tests/test_body_cms.py`) |
-| Cost of one run per dataset | to do, on the DGX |
+| Cost of one run per dataset | **done** (job 35551; estimate at the end) |
 
 ## KinEar inspection (dataset dropped; kept for the record)
 
@@ -166,9 +166,60 @@ Seed-0 summary (`benchmark/summary_<name>.txt` has every seed):
 - In PowerShell, `$` inside a double-quoted ssh command is expanded *locally*. Use full paths instead of `$P` / `$PWD`.
 - A one-shot `ssh host "cmd"` does not load the login profile, so `sbatch` is not on the PATH. Submit jobs from an interactive ssh session.
 
-## Still to do in R0
+## Cost (timing job 35551, 2026-10-31, all on `dgx3`, no failures)
 
-1. **On the DGX:**
-   - ~~bring UERC's hash and summary files back~~ (done: `benchmark/hashes_uerc.txt`, `summary_uerc.txt`);
-   - the timing job (`make_r0_timing_tasks.sh`, 25 runs) is **submitted as job 35551**; waiting for results.
-2. **The R0 freeze commit.**
+Seconds per run: 1 epoch of the plain baseline, seed 0, fp32, including startup and validation.
+
+| Model | AMI | AWE | IITD | EarVN | UERC |
+|---|---|---|---|---|---|
+| ResNet-50 | 25 | 22 | 23 | 32 | 138 |
+| ConvNeXt-T | 28 | 27 | 27 | 41 | 188 |
+| MobileNetV3 | 25 | 25 | 22 | 30 | 123 |
+| DeiT-S | 21 | 24 | 24 | 38 | 157 |
+| Swin-T | 27 | 26 | 26 | 53 | 195 |
+
+On the small datasets these times are almost all startup and evaluation, not training.
+
+**Whole-run reference, measured in v1** (job 35048, `dgx3`, DeiT-S on UERC, 10 tasks of 1,740 steps, with replay):
+- plain model: about 8 minutes per run;
+- CMS model: about 13.6 minutes per run (1.7× plain).
+
+### Estimate for the reported runs
+
+Number of runs: 3 small datasets × 5 models × 7 arms × 5 seeds = 525, plus EarVN and UERC at 105 each (3 seeds) = **735 runs**.
+
+| Dataset(s) | Runs | Assumed time per run | GPU-hours |
+|---|---|---|---|
+| UERC | 105 | plain arms 8–12 min, CMS arms 14 min | ~19 |
+| EarVN | 105 | 1.5–2.5 min | ~3 |
+| AMI, AWE, IITD | 525 | ~1 min | ~9 |
+| **Total** | **735** | | **~31** |
+
+With R1 tuning, roughly **35–60 GPU-hours**. The upper end allows for longer tuned recipes.
+
+**These are estimates, not measurements.** EWC's and LwF's run times are assumed, not measured. CMS's 1.7× is measured only on DeiT-S. Other models are assumed to scale like their UERC epoch times.
+
+**Decision: no scope cut is needed now.** On 4 GPUs this is under a day of compute. Queue waiting, not compute, is the real limit: job 35551 waited over a day and ran for about 24 minutes.
+
+## What is frozen
+
+Every R1–R4 run must use these unchanged:
+
+- **Datasets:** AMI, AWE, IITD-I, EarVN1.0, UERC 2023 public.
+- **Splits and task lists:** pinned by md5 in `benchmark/hashes_<name>.txt`. Settings are in `benchmark/tasks.yaml`.
+- **Seeds:** 0 tunes on validation only. 1–3 are reported on all datasets; AMI, AWE and IITD also report 4–5.
+- **Models:** the five ImageNet-1k weight tags in `benchmark/models.yaml`, with stochastic depth off.
+- **Input and head:** 128×96, ImageNet normalization, 512-d embedding + ArcFace, fp32.
+- **Metrics:** rank-1 (primary), forgetting, BWT, AUROC, DIR@1/5/10%.
+
+**The training budget is frozen as a rule, not as a number.** It is counted in optimizer steps. R1 picks steps per task for each model × dataset on seed-0 validation. Every sequential arm of that model × dataset then uses the same steps per task, and joint gets n_tasks × that in total. Steps, not epochs, because an AMI task has only 56 training images: one epoch is a single step at batch size 64 (v1 undertrained AMI and AWE this way).
+
+**Not frozen yet, on purpose:**
+- each model's tuned recipe (R1);
+- the EWC and LwF strengths (tuned on seed 0 in R2, before the reported runs);
+- the R3 decision rule (committed at the end of R2).
+
+## Known gaps to close at the start of R1
+
+1. `scripts/train_continual.py` still rebuilds tasks with `make_task_splits` instead of reading the frozen task files. The function is deterministic, but R1 should load the task file and verify its hash, so a mismatch fails loudly.
+2. The trainer's flags still use v1 names (`--vit-cms-periods`), and there are no per-dataset settings from `benchmark/tasks.yaml` yet (for example `--held-gallery 0` for IITD).
