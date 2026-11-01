@@ -27,7 +27,7 @@ def pick(rows, tol=0.005):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("root")
+    ap.add_argument("roots", nargs="+", help="result folders, e.g. runs_dgx/r1_tune runs_kaggle/r1_tune")
     ap.add_argument("--allow-missing", action="store_true")
     args = ap.parse_args()
     bench = yaml.safe_load(open(ROOT / "benchmark" / "tasks.yaml"))["datasets"]
@@ -41,10 +41,10 @@ def main():
             rows = []
             for lr in grid["lr_body"]:
                 for steps in grid["steps_per_task"][name]:
-                    f = (Path(args.root) / name / "continual" / f"joint_{key}_lr{lr:g}_s{steps}"
-                         / "seed0" / "metrics.json")
-                    if not f.exists():
-                        missing.append(str(f))
+                    rel = Path(name) / "continual" / f"joint_{key}_lr{lr:g}_s{steps}" / "seed0" / "metrics.json"
+                    f = next((Path(r) / rel for r in args.roots if (Path(r) / rel).exists()), None)
+                    if f is None:
+                        missing.append(str(rel))
                         continue
                     s = json.load(open(f))["summary"]
                     rows.append({"lr": lr, "steps": steps, "rank1": s["final_avg_rank1"],

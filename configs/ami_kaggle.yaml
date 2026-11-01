@@ -1,0 +1,9 @@
+# ami on Kaggle (study v2). Same people, splits and manifest as configs/ami.yaml; the CSVs and the
+# image cache come from the nlear-data dataset, copied by scripts/kaggle/session.py. Paths are
+# relative to the code folder. There are no raw images: the cache must match the manifest.
+name: ami
+data:
+  root: kaggle_data/ami
+  manifest: kaggle_data/ami/manifest.csv
+  splits: kaggle_data/ami/splits_seed{seed}.csv
+  img_size: [128, 96]

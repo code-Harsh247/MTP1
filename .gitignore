@@ -11,5 +11,8 @@ __pycache__/
 *.pth
 *.npy
 /runs_dgx/
+/runs_kaggle/
+/logs_kaggle/
+/kaggle_upload/
 /logs/
 nlear_code.tar.gz

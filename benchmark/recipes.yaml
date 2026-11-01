@@ -1,0 +1,67 @@
+# Written by scripts/r1_select.py from the seed-0 tuning runs.
+recipes:
+  ami:
+    classic_cnn:
+      lr_body: 0.0003
+      steps_per_task: 160
+    modern_cnn:
+      lr_body: 3.0e-05
+      steps_per_task: 60
+    lightweight_cnn:
+      lr_body: 0.0003
+      steps_per_task: 160
+    plain_transformer:
+      lr_body: 0.0003
+      steps_per_task: 60
+    hierarchical_transformer:
+      lr_body: 3.0e-05
+      steps_per_task: 60
+  awe:
+    classic_cnn:
+      lr_body: 0.0003
+      steps_per_task: 60
+    modern_cnn:
+      lr_body: 0.0003
+      steps_per_task: 160
+    lightweight_cnn:
+      lr_body: 0.0003
+      steps_per_task: 160
+    plain_transformer:
+      lr_body: 0.0003
+      steps_per_task: 60
+    hierarchical_transformer:
+      lr_body: 0.0003
+      steps_per_task: 160
+  iitd:
+    classic_cnn:
+      lr_body: 0.0003
+      steps_per_task: 160
+    modern_cnn:
+      lr_body: 3.0e-05
+      steps_per_task: 60
+    lightweight_cnn:
+      lr_body: 0.0001
+      steps_per_task: 160
+    plain_transformer:
+      lr_body: 0.0003
+      steps_per_task: 160
+    hierarchical_transformer:
+      lr_body: 0.0003
+      steps_per_task: 160
+  earvn:
+    classic_cnn:
+      lr_body: 0.0003
+      steps_per_task: 500
+    modern_cnn:
+      lr_body: 0.0003
+      steps_per_task: 500
+    lightweight_cnn:
+      lr_body: 0.0003
+      steps_per_task: 500
+    plain_transformer:
+      lr_body: 0.0003
+      steps_per_task: 500
+    hierarchical_transformer:
+      lr_body: 0.0003
+      steps_per_task: 500
+  uerc: {}
