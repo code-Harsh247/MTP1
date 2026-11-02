@@ -1,0 +1,67 @@
+# Written by scripts/r2_select.py from the seed-0 runs.
+strengths:
+  ami:
+    classic_cnn:
+      ewc: 10000.0
+      lwf: 1.0
+    modern_cnn:
+      ewc: 100.0
+      lwf: 1.0
+    lightweight_cnn:
+      ewc: 10000.0
+      lwf: 1.0
+    plain_transformer:
+      ewc: 100.0
+      lwf: 1.0
+    hierarchical_transformer:
+      ewc: 10000.0
+      lwf: 1.0
+  awe:
+    classic_cnn:
+      ewc: 10000.0
+      lwf: 1.0
+    modern_cnn:
+      ewc: 100.0
+      lwf: 1.0
+    lightweight_cnn:
+      ewc: 100.0
+      lwf: 1.0
+    plain_transformer:
+      ewc: 10000.0
+      lwf: 1.0
+    hierarchical_transformer:
+      ewc: 10000.0
+      lwf: 1.0
+  iitd:
+    classic_cnn:
+      ewc: 10000.0
+      lwf: 10.0
+    modern_cnn:
+      ewc: 10000.0
+      lwf: 1.0
+    lightweight_cnn:
+      ewc: 100.0
+      lwf: 1.0
+    plain_transformer:
+      ewc: 100.0
+      lwf: 1.0
+    hierarchical_transformer:
+      ewc: 10000.0
+      lwf: 1.0
+  earvn:
+    classic_cnn:
+      ewc: 10000.0
+      lwf: 10.0
+    modern_cnn:
+      ewc: 10000.0
+      lwf: 1.0
+    lightweight_cnn:
+      ewc: 100.0
+      lwf: 10.0
+    plain_transformer:
+      ewc: 10000.0
+      lwf: 10.0
+    hierarchical_transformer:
+      ewc: 10000.0
+      lwf: 10.0
+  uerc: {}
