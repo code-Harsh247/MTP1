@@ -71,3 +71,38 @@ These confirm the code runs. **They are not results:** they are single short run
 ## How to run
 
 Enqueue `make_r1_tasks.py tune` (runbook section W), run `r1_select.py` on the results, commit `benchmark/recipes.yaml`, then enqueue `make_r1_tasks.py final`.
+
+## Results: AMI, AWE, IITD, EarVN (2026-11-02)
+
+All ran on Kaggle (2 × Tesla T4): 120 tuning runs, then 90 final runs, all finished. UERC is still queued on the DGX. Recipes are in `benchmark/recipes.yaml`, committed before the final runs.
+
+Joint model on the reported seeds (AMI, AWE, IITD: 1–5; EarVN: 1–3). Rank-1 is mean ± std on the held-out images of the people trained on. DIR is on unseen test people, as a mean.
+
+| Dataset | Model | Rank-1 | DIR@1% | DIR@5% | DIR@10% |
+|---|---|---|---|---|---|
+| AMI | ResNet-50 | 0.980 ± 0.013 | 0.624 | 0.772 | 0.820 |
+| | ConvNeXt-T | 0.994 ± 0.008 | 0.884 | 0.928 | 0.936 |
+| | MobileNetV3 | 0.997 ± 0.006 | 0.788 | 0.856 | 0.872 |
+| | DeiT-S | 1.000 ± 0.000 | 0.884 | 0.932 | 0.948 |
+| | Swin-T | 0.997 ± 0.006 | 0.848 | 0.932 | 0.964 |
+| AWE | ResNet-50 | 0.557 ± 0.048 | 0.077 | 0.152 | 0.207 |
+| | ConvNeXt-T | 0.694 ± 0.059 | 0.128 | 0.198 | 0.258 |
+| | MobileNetV3 | 0.580 ± 0.044 | 0.080 | 0.170 | 0.230 |
+| | DeiT-S | 0.689 ± 0.023 | 0.110 | 0.177 | 0.240 |
+| | Swin-T | 0.700 ± 0.036 | 0.077 | 0.155 | 0.210 |
+| IITD | ResNet-50 | 0.978 ± 0.015 | 0.426 | 0.562 | 0.644 |
+| | ConvNeXt-T | 0.979 ± 0.008 | 0.594 | 0.729 | 0.816 |
+| | MobileNetV3 | 0.979 ± 0.012 | 0.490 | 0.646 | 0.722 |
+| | DeiT-S | 0.990 ± 0.004 | 0.707 | 0.765 | 0.843 |
+| | Swin-T | 0.990 ± 0.007 | 0.600 | 0.697 | 0.780 |
+| EarVN | ResNet-50 | 0.932 ± 0.004 | 0.090 | 0.184 | 0.248 |
+| | ConvNeXt-T | 0.946 ± 0.008 | 0.125 | 0.245 | 0.325 |
+| | MobileNetV3 | 0.840 ± 0.020 | 0.081 | 0.171 | 0.227 |
+| | DeiT-S | 0.937 ± 0.006 | 0.099 | 0.198 | 0.277 |
+| | Swin-T | 0.952 ± 0.005 | 0.098 | 0.210 | 0.283 |
+
+**Limits of these numbers:**
+
+- **EarVN may be undertrained.** All five recipes sit at the grid's highest learning rate and longest training, and MobileNetV3 was still improving quickly. The grid was fixed in advance, so it was not extended.
+- **AMI and IITD are near the ceiling,** so tuning barely separated the options there.
+- **Machine:** later arms of these four datasets must also run on Kaggle, so each cell compares like with like.

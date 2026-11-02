@@ -1,0 +1,26 @@
+# Study v2, R2 design. Committed before any R2 run.
+#
+# Every sequential arm uses its cell's recipe from benchmark/recipes.yaml, so it has the same
+# learning rate and steps per task as that cell's joint run.
+#
+# Arms on the reported seeds: naive, replay, ewc, lwf. Replay stores up to replay_k images per
+# person (fewer where a person has fewer) and has no strength to tune.
+#
+# EWC and LwF strength, per model x dataset, on seed 0 only (scripts/r2_select.py):
+#   1. main score: summary.final_avg_rank1;
+#   2. among strengths within 0.005 of the best: lowest summary.forgetting_rank1;
+#   3. still tied: lower strength.
+# A run that failed or gave non-finite numbers is not eligible. The values are v1's two middle
+# settings per method (notes in archive/v1/notes/c2_baselines.md); v1's most extreme values
+# stopped the model learning, and each extra value costs a full run in all 25 cells.
+#
+# Forgetting rule (plan.md; scripts/r2_report.py), on the naive arm of each model x dataset:
+# forgetting is SHOWN only if, on EVERY reported seed, rank-1 forgetting >= forgetting_min AND
+# final average rank-1 <= that seed's joint rank-1 - joint_gap. A cell with a missing run is
+# INCOMPLETE, never shown. The thresholds are not changed after seeing results.
+replay_k: 5
+strengths:
+  ewc: [100.0, 10000.0]
+  lwf: [1.0, 10.0]
+forgetting_min: 0.10
+joint_gap: 0.10

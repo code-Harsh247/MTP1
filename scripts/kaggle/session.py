@@ -44,6 +44,7 @@ def find_gpus():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--r1", choices=["tune", "final"], help="task list from make_r1_tasks.py")
+    ap.add_argument("--r2", choices=["first", "second"], help="task list from make_r2_tasks.py")
     ap.add_argument("--tasks", help="or a task file, relative to the code folder")
     ap.add_argument("--only", default="ami,awe,iitd,earvn")
     ap.add_argument("--input-root", default="/kaggle/input")
@@ -53,8 +54,8 @@ def main():
     ap.add_argument("--min-left", type=float, default=1.0)
     ap.add_argument("--no-pip", action="store_true")
     args = ap.parse_args()
-    if bool(args.r1) == bool(args.tasks):
-        sys.exit("give exactly one of --r1 and --tasks")
+    if sum(map(bool, (args.r1, args.r2, args.tasks))) != 1:
+        sys.exit("give exactly one of --r1, --r2 and --tasks")
 
     files = list(walk_files(args.input_root))
     code = next((f.parents[1] for f in files if f.as_posix().endswith("scripts/train_continual.py")), None)
@@ -83,9 +84,10 @@ def main():
         if have != TIMM_VERSION:
             subprocess.run([sys.executable, "-m", "pip", "install", "-q", f"timm=={TIMM_VERSION}"], check=True)
 
-    if args.r1:
-        tasks = subprocess.run([sys.executable, "scripts/dgx/make_r1_tasks.py", args.r1, "--kaggle",
-                                "--only", args.only], cwd=work, capture_output=True, text=True, check=True).stdout
+    if args.r1 or args.r2:
+        script, which = ("make_r1_tasks.py", args.r1) if args.r1 else ("make_r2_tasks.py", args.r2)
+        tasks = subprocess.run([sys.executable, f"scripts/dgx/{script}", which, "--kaggle", "--only", args.only],
+                               cwd=work, capture_output=True, text=True, check=True).stdout
     else:
         tasks = (work / args.tasks).read_text()
     lines = [ln.strip() for ln in tasks.splitlines() if ln.strip()]
