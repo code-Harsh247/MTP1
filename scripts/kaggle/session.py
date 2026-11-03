@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -45,6 +46,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--r1", choices=["tune", "final"], help="task list from make_r1_tasks.py")
     ap.add_argument("--r2", choices=["first", "second"], help="task list from make_r2_tasks.py")
+    ap.add_argument("--r3", choices=["cms", "replay"],
+                    help="cms: tune the slow lr on seed 0, select by the committed rule, then run naive + CMS; "
+                         "replay: replay + CMS, with benchmark/r3_lr_pow.yaml already committed")
     ap.add_argument("--tasks", help="or a task file, relative to the code folder")
     ap.add_argument("--only", default="ami,awe,iitd,earvn")
     ap.add_argument("--input-root", default="/kaggle/input")
@@ -54,8 +58,8 @@ def main():
     ap.add_argument("--min-left", type=float, default=1.0)
     ap.add_argument("--no-pip", action="store_true")
     args = ap.parse_args()
-    if sum(map(bool, (args.r1, args.r2, args.tasks))) != 1:
-        sys.exit("give exactly one of --r1, --r2 and --tasks")
+    if sum(map(bool, (args.r1, args.r2, args.r3, args.tasks))) != 1:
+        sys.exit("give exactly one of --r1, --r2, --r3 and --tasks")
 
     files = list(walk_files(args.input_root))
     code = next((f.parents[1] for f in files if f.as_posix().endswith("scripts/train_continual.py")), None)
@@ -84,20 +88,44 @@ def main():
         if have != TIMM_VERSION:
             subprocess.run([sys.executable, "-m", "pip", "install", "-q", f"timm=={TIMM_VERSION}"], check=True)
 
-    if args.r1 or args.r2:
-        script, which = ("make_r1_tasks.py", args.r1) if args.r1 else ("make_r2_tasks.py", args.r2)
-        tasks = subprocess.run([sys.executable, f"scripts/dgx/{script}", which, "--kaggle", "--only", args.only],
-                               cwd=work, capture_output=True, text=True, check=True).stdout
+    def task_lines(script, which):
+        return subprocess.run([sys.executable, f"scripts/dgx/{script}", which, "--kaggle", "--only", args.only],
+                              cwd=work, capture_output=True, text=True, check=True).stdout
+
+    output = Path(args.output).resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    previous = [f for f in files if f.name == "ledger.tsv"]
+    gpus = find_gpus()
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    keep = ["runs_kaggle", "benchmark/r3_lr_pow.yaml"]
+    t0 = time.time()
+
+    if args.r3 == "cms":
+        attached = next((f for f in files if f.name == "r3_lr_pow.yaml"), None)
+        if attached:     # a resumed session: the earlier one already selected
+            shutil.copy(attached, work / "benchmark" / "r3_lr_pow.yaml")
+        else:
+            lines = [ln for ln in task_lines("make_r3_tasks.py", "tune").splitlines() if ln.strip()]
+            print(f"{len(lines)} tuning lines, GPUs: {gpus}", flush=True)
+            Runner(lines, gpus, args.hours, args.min_left, work, output, keep, previous, "tune").run()
+            sel = subprocess.run([sys.executable, "scripts/r3_select.py", "runs_kaggle/r3", "--allow-missing"],
+                                 cwd=work, capture_output=True, text=True)
+            print(sel.stdout, sel.stderr, flush=True)
+            if sel.returncode != 0:
+                sys.exit("selection failed: no naive + CMS runs started")
+            shutil.copy(work / "benchmark" / "r3_lr_pow.yaml", output / "r3_lr_pow.yaml")
+            previous = [*previous, output / "ledger.tsv"]
+
+    if args.r1 or args.r2 or args.r3:
+        script, which = (("make_r1_tasks.py", args.r1) if args.r1 else
+                         ("make_r2_tasks.py", args.r2) if args.r2 else ("make_r3_tasks.py", args.r3))
+        tasks = task_lines(script, which)
     else:
         tasks = (work / args.tasks).read_text()
     lines = [ln.strip() for ln in tasks.splitlines() if ln.strip()]
-
-    output = Path(args.output).resolve()
-    previous = [f for f in files if f.name == "ledger.tsv"]
-    gpus = find_gpus()
     print(f"{len(lines)} task lines, {len(previous)} earlier ledgers, GPUs: {gpus}", flush=True)
-    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-    runner = Runner(lines, gpus, args.hours, args.min_left, work, output, ["runs_kaggle"], previous)
+    hours_left = args.hours - (time.time() - t0) / 3600
+    runner = Runner(lines, gpus, hours_left, args.min_left, work, output, keep, previous)
     counts, left = runner.run()
     print("all task lines finished" if counts["failed"] + counts["killed"] + left == 0
           else "not finished: run another session with this output attached")

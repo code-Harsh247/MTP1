@@ -1,0 +1,41 @@
+# Study v2, R3 design and decision rule. Committed before any R3 run, and before the reported
+# EWC and LwF runs were seen.
+#
+# NL arm (plan.md): every block's pointwise MLP becomes parallel copies of the pretrained weights,
+# updated every `periods` steps. It reuses each cell's recipe from benchmark/recipes.yaml.
+#
+# Slow-copy learning rate, per model x dataset, on seed 0 only (scripts/r3_select.py), using the
+# same rule and number of values as EWC and LwF got:
+#   slow lr = lr * period ** lr_pow, for lr_pow in lr_pows;
+#   1. main score: summary.final_avg_rank1;
+#   2. among values within 0.005 of the best: lowest summary.forgetting_rank1;
+#   3. still tied: lower value.
+#
+# PRIMARY comparison: naive + CMS against naive, per model x dataset, paired by seed.
+#   REDUCED if all three hold:
+#     - mean forgetting drop (naive - CMS) >= min_mean_drop;
+#     - CMS forgets less on every seed, or on all but one when there are at least 5 seeds;
+#     - mean final rank-1 >= naive's - max_final_loss, so it isn't just learning less.
+#   FIXED if REDUCED and also:
+#     - mean CMS forgetting < fixed_forgetting_below (R2's forgetting threshold);
+#     - mean CMS final rank-1 > mean joint rank-1 - joint_gap (R2's gap).
+#   A cell with a missing run is INCOMPLETE.
+#
+# RQ2 counts only the cells where R2 showed forgetting (scripts/r2_report.py's rule):
+#   YES      REDUCED in more than half of them
+#   PARTIAL  REDUCED in at least one, but not more than half
+#   NO       REDUCED in none
+# Other cells are reported, but can't count: there was no shown forgetting to fix.
+#
+# SECONDARY: replay + CMS against replay, same REDUCED test. It does not affect RQ2.
+#
+# Known limit: the slow copies rarely update on short runs. At 60 steps per task (300 in total) a
+# period-256 copy updates once. The report prints each cell's update count. The periods are not
+# changed per dataset, because plan.md fixes one NL arm for all.
+periods: [1, 16, 256]
+lr_pows: [0.0, 0.5]
+replay_k: 5
+min_mean_drop: 0.05
+max_final_loss: 0.02
+fixed_forgetting_below: 0.10
+joint_gap: 0.10

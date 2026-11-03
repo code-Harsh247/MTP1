@@ -30,8 +30,9 @@ def read_done(ledgers):
 
 
 class Runner:
-    def __init__(self, lines, gpus, hours, min_left, cwd, output, keep, previous=()):
+    def __init__(self, lines, gpus, hours, min_left, cwd, output, keep, previous=(), log_prefix="task"):
         self.cwd, self.output, self.gpus = Path(cwd), Path(output), gpus
+        self.log_prefix = log_prefix         # a second Runner in one session must not overwrite logs
         self.keep = keep                     # folders under cwd that go into results.tar.gz
         self.output.mkdir(parents=True, exist_ok=True)
         self.logs = self.cwd / "logs_kaggle"
@@ -82,7 +83,7 @@ class Runner:
                 return
             print(f"[gpu {gpu['index']}] start {n + 1}/{self.total}: {line}", flush=True)
             t0 = time.time()
-            with open(self.logs / f"task_{self.n_skipped + n:04d}.out", "w") as log:
+            with open(self.logs / f"{self.log_prefix}_{self.n_skipped + n:04d}.out", "w") as log:
                 p = subprocess.Popen([sys.executable, *shlex.split(line)], cwd=self.cwd, env=env,
                                      stdout=log, stderr=subprocess.STDOUT)
                 while p.poll() is None and time.time() < self.deadline:
