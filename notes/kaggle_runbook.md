@@ -45,6 +45,20 @@ If Kaggle doesn't work out, put them back:
 mv queue/on_kaggle/*.task queue/pending/
 ```
 
+## Session commands by phase
+
+Use one of these as the cell's last line:
+
+| Phase | Last line |
+|---|---|
+| R2, naive, replay and strength tuning | `!python {code}/session.py --r2 first --hours 11` |
+| R2, EWC and LwF | `!python {code}/session.py --r2 second --hours 11` |
+| R3, CMS (tunes, selects, then runs) | `!python {code}/session.py --r3 cms --hours 11` |
+| R3, replay + CMS | `!python {code}/session.py --r3 replay --only earvn,awe,ami,iitd --hours 11` |
+| R4, task-boundary CMS (35 runs) | `!python {code}/session.py --r4 --only earvn,awe,ami --hours 11` |
+
+The order in `--only` is the order the runs happen in.
+
 ## Choosing recipes
 
 ```bash

@@ -49,6 +49,7 @@ def main():
     ap.add_argument("--r3", choices=["cms", "replay"],
                     help="cms: tune the slow lr on seed 0, select by the committed rule, then run naive + CMS; "
                          "replay: replay + CMS, with benchmark/r3_lr_pow.yaml already committed")
+    ap.add_argument("--r4", action="store_true", help="task-boundary CMS (benchmark/r4_design.yaml)")
     ap.add_argument("--tasks", help="or a task file, relative to the code folder")
     ap.add_argument("--only", default="ami,awe,iitd,earvn")
     ap.add_argument("--input-root", default="/kaggle/input")
@@ -58,8 +59,8 @@ def main():
     ap.add_argument("--min-left", type=float, default=1.0)
     ap.add_argument("--no-pip", action="store_true")
     args = ap.parse_args()
-    if sum(map(bool, (args.r1, args.r2, args.r3, args.tasks))) != 1:
-        sys.exit("give exactly one of --r1, --r2, --r3 and --tasks")
+    if sum(map(bool, (args.r1, args.r2, args.r3, args.r4, args.tasks))) != 1:
+        sys.exit("give exactly one of --r1, --r2, --r3, --r4 and --tasks")
 
     files = list(walk_files(args.input_root))
     code = next((f.parents[1] for f in files if f.as_posix().endswith("scripts/train_continual.py")), None)
@@ -89,8 +90,8 @@ def main():
             subprocess.run([sys.executable, "-m", "pip", "install", "-q", f"timm=={TIMM_VERSION}"], check=True)
 
     def task_lines(script, which):
-        return subprocess.run([sys.executable, f"scripts/dgx/{script}", which, "--kaggle", "--only", args.only],
-                              cwd=work, capture_output=True, text=True, check=True).stdout
+        cmd = [sys.executable, f"scripts/dgx/{script}", *([which] if which else []), "--kaggle", "--only", args.only]
+        return subprocess.run(cmd, cwd=work, capture_output=True, text=True, check=True).stdout
 
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -116,7 +117,9 @@ def main():
             shutil.copy(work / "benchmark" / "r3_lr_pow.yaml", output / "r3_lr_pow.yaml")
             previous = [*previous, output / "ledger.tsv"]
 
-    if args.r1 or args.r2 or args.r3:
+    if args.r4:
+        tasks = task_lines("make_r4_tasks.py", None)
+    elif args.r1 or args.r2 or args.r3:
         script, which = (("make_r1_tasks.py", args.r1) if args.r1 else
                          ("make_r2_tasks.py", args.r2) if args.r2 else ("make_r3_tasks.py", args.r3))
         tasks = task_lines(script, which)
