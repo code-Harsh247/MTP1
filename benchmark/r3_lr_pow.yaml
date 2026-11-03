@@ -1,0 +1,27 @@
+# Written by scripts/r3_select.py from the seed-0 runs.
+lr_pow:
+  ami:
+    classic_cnn: 0.5
+    modern_cnn: 0.5
+    lightweight_cnn: 0.0
+    plain_transformer: 0.0
+    hierarchical_transformer: 0.0
+  awe:
+    classic_cnn: 0.5
+    modern_cnn: 0.5
+    lightweight_cnn: 0.5
+    plain_transformer: 0.0
+    hierarchical_transformer: 0.0
+  iitd:
+    classic_cnn: 0.0
+    modern_cnn: 0.5
+    lightweight_cnn: 0.5
+    plain_transformer: 0.0
+    hierarchical_transformer: 0.0
+  earvn:
+    classic_cnn: 0.5
+    modern_cnn: 0.0
+    lightweight_cnn: 0.5
+    plain_transformer: 0.0
+    hierarchical_transformer: 0.0
+  uerc: {}
