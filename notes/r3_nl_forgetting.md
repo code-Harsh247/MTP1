@@ -32,5 +32,5 @@ REDUCED needs a mean drop ≥ 0.05, CMS better on every seed (all but one with 5
 
 - **Slow copies update rarely.** A period-256 copy updates 1–3 times on AMI, AWE and IITD, and 9 times on EarVN. The NL arm's slow memory therefore barely acts on the small datasets. The periods were fixed in advance for every cell.
 - **One NL arm only:** CMS on each block's pointwise MLP, with periods 1, 16, 256 and two seed-0 slow-lr values. Other CMS placements, periods or consolidation could behave differently (R4).
-- **Secondary comparison (replay + CMS) not run yet,** so its column is INCOMPLETE. It cannot change the RQ2 answer.
+- **Secondary comparison (replay + CMS against replay), run 2026-11-04: not reduced in any of the 20 cells.** Among the 9 shown cells, the largest gain is AWE DeiT-S (forgetting 0.114 → 0.064, 4 of 5 seeds), just under the 0.05 mean drop. AWE ConvNeXt-T gets worse (0.036 → 0.104). On EarVN, CMS lowers replay's forgetting by about 0.02 in 4 of 5 families. It does not change the RQ2 answer.
 - **UERC is not included.** If it finishes, its cells are added by re-running the report.
