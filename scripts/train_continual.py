@@ -36,7 +36,7 @@ from nlear.data.cache import GPUAugment, load_image_cache  # noqa: E402
 from nlear.data.manifest import load_manifest  # noqa: E402
 from nlear.engine import embed, train_steps  # noqa: E402
 from nlear.eval.protocol import run_protocol  # noqa: E402
-from nlear.models import ArcFace, EmbeddingNet  # noqa: E402
+from nlear.models import ArcFace, CMSParallel, EmbeddingNet  # noqa: E402
 
 METHODS = ("joint", "naive", "ewc", "lwf", "replay")
 
@@ -119,6 +119,9 @@ def main():
     ap.add_argument("--arch", default="", help="override train.arch")
     ap.add_argument("--lr-body", type=float, help="override train.lr_body")
     ap.add_argument("--no-save", action="store_true", help="metrics only: no model.pt or task_splits.csv")
+    ap.add_argument("--save-stages", action="store_true",
+                    help="diagnostics: save the embedding model before training (init.pt) and after every "
+                         "task (stage<k>.pt), for scripts/diagnose_cms.py")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", default="runs")
     args = ap.parse_args()
@@ -197,6 +200,8 @@ def main():
     method = make_method(args)
 
     A, U, log = [], [], []
+    if args.save_stages:
+        torch.save(model.state_dict(), run_dir / "init.pt")
     for s, tasks in enumerate(stages):
         tic = time.time()
         rows = torch.cat([rows_of_task[k] for k in tasks])
@@ -224,6 +229,12 @@ def main():
         rec = {"stage": s, "tasks": tasks, **stats, "sec": round(time.time() - tic, 1),
                "A_dir@5%": [round(a["dir@far0.05"], 3) for a in A_row],
                "U_test_dir@5%": round(U_s["test"]["dir@far0.05"], 4)}
+        if body_periods:   # mean softmax mixing weight of each copy, over all CMS modules
+            w = torch.stack([torch.softmax(m.agg_logits.detach(), 0) for m in model.modules()
+                             if isinstance(m, CMSParallel)]).mean(0)
+            rec["mix_weights"] = [round(float(x), 4) for x in w]
+        if args.save_stages:
+            torch.save(model.state_dict(), run_dir / f"stage{s}.pt")
         log.append(rec)
         print(" ".join(f"{k}={v}" for k, v in rec.items()), flush=True)
 

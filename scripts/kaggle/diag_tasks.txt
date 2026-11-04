@@ -1,0 +1,3 @@
+scripts/run_cms_diagnostics.py --arms r3 --data configs/earvn_kaggle.yaml --out runs_kaggle/diag --delete-weights
+scripts/run_cms_diagnostics.py --arms r4 --data configs/earvn_kaggle.yaml --out runs_kaggle/diag --delete-weights
+scripts/run_cms_diagnostics.py --arms naive --data configs/earvn_kaggle.yaml --out runs_kaggle/diag --delete-weights
