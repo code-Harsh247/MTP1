@@ -1,0 +1,21 @@
+# Study v2, R4b: CMS with task-boundary consolidation. EXPLORATORY.
+# Designed after R3, R4 and the EarVN ConvNeXt diagnostics (notes/cms_diagnostics.md) were seen,
+# so it is a follow-up, not a test of RQ2. Committed before any R4b run.
+#
+# Why: the diagnostics showed the slow copies barely moved (0.4-1% from pretrained, against 10%
+# for the fast copy), because each slow AdamW step is normalised to the size of one ordinary
+# step. Here the slow copies take no gradient at all. Knowledge moves down the chain instead,
+# NL's second design step ([NL] Sec. 3.3, "how knowledge transfers between levels"):
+#   copy 1 trains every step, as before;
+#   end of every task:      copy 2 <- copy 2 + beta * (copy 1 - copy 2)
+#   end of every 2nd task:  copy 3 <- copy 3 + beta * (copy 2 - copy 3), before copy 2 moves
+# (nlear.cms.TaskConsolidation). No new tuning: beta is fixed here.
+#
+# Same cells and same test as R4: benchmark/r3_rule.yaml's REDUCED / FIXED test against naive
+# (scripts/r4b_report.py), with R3 and R4 shown alongside.
+every: [1, 2]
+beta: 0.5
+cells:
+  earvn: [classic_cnn, modern_cnn, lightweight_cnn, plain_transformer, hierarchical_transformer]
+  awe: [modern_cnn, plain_transformer, hierarchical_transformer]
+  ami: [plain_transformer]

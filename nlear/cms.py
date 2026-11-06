@@ -25,6 +25,43 @@ The ArcFace head is always fast (it is task-specific bookkeeping, not memory).
 import torch
 
 
+class TaskConsolidation:
+    """Study v2 R4b: knowledge transfer between CMS levels at task boundaries ([NL] Sec. 3.3, step 2:
+    "how knowledge transfers between levels"), in place of slow gradient updates.
+
+    Copy 1 of every CMSParallel module trains every step. The slower copies get no gradient. At the
+    end of task k (0-based), copy l moves part of the way toward copy l-1 if (k+1) % every[l-1] == 0:
+
+        theta_l <- theta_l + beta * (theta_{l-1} - theta_l)
+
+    Slower copies are updated first, so each takes the previous state of the copy above it. A
+    chain fast -> medium -> slow thus holds a running average of the fast copy's end-of-task
+    weights at two time scales. At initialisation all copies are equal, so the model computes
+    exactly the plain model until the first task ends.
+    """
+
+    def __init__(self, model, every, beta):
+        from .models import CMSParallel
+        self.mods = [m for m in model.body.modules() if isinstance(m, CMSParallel)]
+        if not self.mods or any(len(m.copies) != len(every) + 1 for m in self.mods):
+            raise ValueError("need CMSParallel modules with len(every) + 1 copies")
+        self.every, self.beta = list(every), beta
+        for m in self.mods:
+            for c in m.copies[1:]:
+                c.requires_grad_(False)
+        self.n_updates = {l + 1: 0 for l in range(len(every))}
+
+    @torch.no_grad()
+    def end_task(self, k):
+        for lvl in range(len(self.every), 0, -1):          # slowest first
+            if (k + 1) % self.every[lvl - 1]:
+                continue
+            for m in self.mods:
+                for slow, fast in zip(m.copies[lvl].parameters(), m.copies[lvl - 1].parameters()):
+                    slow.lerp_(fast, self.beta)
+            self.n_updates[lvl] += 1
+
+
 class CMSScheduler:
     def __init__(self, model, head, t, periods, body_period=1, proj_period=1, lr_pow=0.0):
         if len(periods) != len(model.neck.blocks):

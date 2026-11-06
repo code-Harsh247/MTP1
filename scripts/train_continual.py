@@ -29,7 +29,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.cl_methods import EWC, LwF, Replay  # noqa: E402
-from nlear.cms import CMSScheduler  # noqa: E402
+from nlear.cms import CMSScheduler, TaskConsolidation  # noqa: E402
 from nlear.continual import (continual_summary, load_frozen_tasks, make_task_splits,  # noqa: E402
                              seen_task_metrics)
 from nlear.data.cache import GPUAugment, load_image_cache  # noqa: E402
@@ -63,6 +63,8 @@ def default_name(args):
                  f"_p{args.cms_lr_pow:g}")
     elif args.body_cms_periods:
         name += f"_bodycms{args.body_cms_periods.replace(',', '-')}_p{args.body_cms_lr_pow:g}"
+    elif args.consolidate_every:
+        name += f"_consol{args.consolidate_every.replace(',', '-')}_b{args.consolidate_beta:g}"
     elif args.fp32:
         name += "_fp32"   # CMS runs are always fp32; mark it only where it differs from the default
     return name
@@ -114,6 +116,10 @@ def main():
                     help="CMS inside the backbone (any family): update period per copy, e.g. 1,16,256")
     ap.add_argument("--body-cms-lr-pow", "--vit-cms-lr-pow", type=float, default=0.0,
                     help="body CMS: slow lr = lr * period**pow")
+    ap.add_argument("--consolidate-every", default="",
+                    help="R4b: CMS copies without slow gradients; copy l+1 moves toward copy l at the end of "
+                         "every n-th task, e.g. 1,2 (nlear.cms.TaskConsolidation)")
+    ap.add_argument("--consolidate-beta", type=float, default=0.5, help="R4b: share of the gap closed")
     ap.add_argument("--bench", default="", help="study v2: dataset name in benchmark/tasks.yaml; uses its "
                     "frozen task file (hash-checked), and its n_tasks and held-out rule")
     ap.add_argument("--arch", default="", help="override train.arch")
@@ -172,10 +178,17 @@ def main():
 
     periods = [int(x) for x in args.cms_periods.split(",")] if args.cms_periods else []
     body_periods = [int(x) for x in args.body_cms_periods.split(",")] if args.body_cms_periods else []
+    every = [int(x) for x in args.consolidate_every.split(",")] if args.consolidate_every else []
+    if every and body_periods:
+        raise ValueError("--consolidate-every replaces --body-cms-periods; give one of them")
     model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0),
                          neck="cms" if periods else "linear", cms_levels=len(periods) or 3,
                          cms_mult=args.cms_mult, img_size=d["img_size"],
-                         body_cms_levels=len(body_periods)).to(device)
+                         body_cms_levels=len(body_periods) or (len(every) + 1 if every else 0)).to(device)
+    consol = TaskConsolidation(model, every, args.consolidate_beta) if every else None
+    if consol:
+        print(f"Task consolidation: copies 2.. move toward the copy above every {every} tasks, "
+              f"beta {args.consolidate_beta}")
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
     cms = None
     if periods:
@@ -223,13 +236,15 @@ def main():
                             step_hook=cms.hook if cms else None)
         if method is not None:
             method.end_task(model, head, images, rows, labels, device, active, t["batch_size"], gen)
+        if consol:
+            consol.end_task(s)
         A_row, U_s = evaluate_stage(model, images, df, device, args.n_tasks)
         A.append(A_row)
         U.append(U_s)
         rec = {"stage": s, "tasks": tasks, **stats, "sec": round(time.time() - tic, 1),
                "A_dir@5%": [round(a["dir@far0.05"], 3) for a in A_row],
                "U_test_dir@5%": round(U_s["test"]["dir@far0.05"], 4)}
-        if body_periods:   # mean softmax mixing weight of each copy, over all CMS modules
+        if body_periods or consol:   # mean softmax mixing weight of each copy, over all CMS modules
             w = torch.stack([torch.softmax(m.agg_logits.detach(), 0) for m in model.modules()
                              if isinstance(m, CMSParallel)]).mean(0)
             rec["mix_weights"] = [round(float(x), 4) for x in w]
@@ -247,6 +262,8 @@ def main():
     summary["final_U_val"] = U[-1]["val"]
     if cms:
         summary["cms_updates_per_period"] = {str(k): v for k, v in cms.n_updates.items()}
+    if consol:
+        summary["consolidations_per_copy"] = {str(k + 1): v for k, v in consol.n_updates.items()}
     json.dump({"log": log, "summary": summary, "A": A, "U": U}, open(run_dir / "metrics.json", "w"), indent=1)
     if not args.no_save:
         torch.save({"model": model.state_dict()}, run_dir / "model.pt")

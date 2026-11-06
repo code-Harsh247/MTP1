@@ -50,6 +50,7 @@ def main():
                     help="cms: tune the slow lr on seed 0, select by the committed rule, then run naive + CMS; "
                          "replay: replay + CMS, with benchmark/r3_lr_pow.yaml already committed")
     ap.add_argument("--r4", action="store_true", help="task-boundary CMS (benchmark/r4_design.yaml)")
+    ap.add_argument("--r4b", action="store_true", help="CMS with consolidation (benchmark/r4b_design.yaml)")
     ap.add_argument("--tasks", help="or a task file, relative to the code folder")
     ap.add_argument("--only", default="ami,awe,iitd,earvn")
     ap.add_argument("--input-root", default="/kaggle/input")
@@ -59,8 +60,8 @@ def main():
     ap.add_argument("--min-left", type=float, default=1.0)
     ap.add_argument("--no-pip", action="store_true")
     args = ap.parse_args()
-    if sum(map(bool, (args.r1, args.r2, args.r3, args.r4, args.tasks))) != 1:
-        sys.exit("give exactly one of --r1, --r2, --r3, --r4 and --tasks")
+    if sum(map(bool, (args.r1, args.r2, args.r3, args.r4, args.r4b, args.tasks))) != 1:
+        sys.exit("give exactly one of --r1, --r2, --r3, --r4, --r4b and --tasks")
 
     files = list(walk_files(args.input_root))
     code = next((f.parents[1] for f in files if f.as_posix().endswith("scripts/train_continual.py")), None)
@@ -117,8 +118,8 @@ def main():
             shutil.copy(work / "benchmark" / "r3_lr_pow.yaml", output / "r3_lr_pow.yaml")
             previous = [*previous, output / "ledger.tsv"]
 
-    if args.r4:
-        tasks = task_lines("make_r4_tasks.py", None)
+    if args.r4 or args.r4b:
+        tasks = task_lines("make_r4_tasks.py" if args.r4 else "make_r4b_tasks.py", None)
     elif args.r1 or args.r2 or args.r3:
         script, which = (("make_r1_tasks.py", args.r1) if args.r1 else
                          ("make_r2_tasks.py", args.r2) if args.r2 else ("make_r3_tasks.py", args.r3))

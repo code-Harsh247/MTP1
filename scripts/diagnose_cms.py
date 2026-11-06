@@ -33,8 +33,9 @@ tc = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tc)
 
 
-def group_names(model, periods):
-    """state_dict key -> part of the model, for the restore and drift tables."""
+def group_names(model, labels):
+    """state_dict key -> part of the model, for the restore and drift tables. labels[i] says how
+    copy i+1 is updated."""
     name_of = {id(m): n for n, m in model.named_modules()}
     pointwise = [f"{name_of[id(parent)]}.{attr}." for parent, attr in cms_targets(model.body)]
 
@@ -46,7 +47,7 @@ def group_names(model, periods):
         m = re.search(r"\.copies\.(\d+)\.", k)
         if m:
             i = int(m.group(1))
-            return f"copy {i + 1} (every {periods[i]} steps)"
+            return f"copy {i + 1} ({labels[i]})"
         if any(k.startswith(p) for p in pointwise):
             return "pointwise layers"
         return "rest of backbone"
@@ -65,6 +66,11 @@ def diagnose(run_dir, device):
     cfg = yaml.safe_load(open(run_dir / "config.yaml"))
     d, t, a = cfg["data"]["data"], cfg["train"]["train"], cfg["args"]
     periods = [int(x) for x in a["body_cms_periods"].split(",")] if a.get("body_cms_periods") else []
+    labels = [f"every {p} steps" for p in periods]
+    if a.get("consolidate_every"):     # R4b: copy 1 trains, the others are consolidated at task ends
+        every = [int(x) for x in a["consolidate_every"].split(",")]
+        labels = ["every step"] + [f"consolidated every {e} task{'s' if e > 1 else ''}" for e in every]
+        periods = [1] + every
     bench = yaml.safe_load(open(ROOT / "benchmark" / "tasks.yaml"))["datasets"][a["bench"]]
     T = bench["n_tasks"]
     h, w = d["img_size"]
@@ -77,7 +83,7 @@ def diagnose(run_dir, device):
     init = torch.load(run_dir / "init.pt", map_location="cpu")
     stages = [torch.load(run_dir / f"stage{s}.pt", map_location="cpu") for s in range(T)]
     final, first = stages[-1], stages[0]
-    groups = group_names(model, periods)
+    groups = group_names(model, labels)
     parts = sorted(set(groups.values()))
 
     def rank1(state, mix=None):
@@ -107,9 +113,9 @@ def diagnose(run_dir, device):
                                for part in parts}
     if periods:
         out["one_copy_only"] = {}
-        for i, p in enumerate(periods):
+        for i, lab in enumerate(labels):
             r = rank1(final, mix=i)
-            out["one_copy_only"][f"copy {i + 1} (every {p} steps)"] = {
+            out["one_copy_only"][f"copy {i + 1} ({lab})"] = {
                 "task1": r[0], "old_tasks": float(np.mean(r[:-1])), "last_task": r[-1]}
         out["one_copy_only"]["all copies, as trained"] = {
             "task1": r_final[0], "old_tasks": float(np.mean(r_final[:-1])), "last_task": r_final[-1]}
