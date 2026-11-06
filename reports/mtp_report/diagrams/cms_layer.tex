@@ -1,0 +1,33 @@
+% A pointwise layer replaced by CMS (Section 4.3)
+\begin{tikzpicture}[
+  blk/.style={draw=#1, fill=#1!10, line width=0.8pt, rounded corners=2pt, minimum width=4.4cm, minimum height=0.85cm, font=\small},
+  arr/.style={-{Stealth[length=2.3mm]}, line width=0.7pt, draw=cInk!75},
+  lab/.style={font=\footnotesize, text=cInk!80}]
+% plain layer
+\node[font=\small\bfseries] at (0,2.25) {Plain backbone};
+\node (px) at (0,-1.35) {$x$};
+\node[blk=cInk, minimum width=3.1cm] (pm) at (0,0) {pretrained MLP};
+\node (py) at (0,1.35) {$y$};
+\draw[arr] (px) -- (pm); \draw[arr] (pm) -- (py);
+\node[lab] at (0,-2.0) {updated every step};
+% arrow between
+\draw[-{Stealth[length=3mm]}, line width=1.2pt, draw=cInk!50] (1.9,0) -- node[above, lab] {replace} (3.2,0);
+% CMS layer
+\node[font=\small\bfseries] at (6.9,2.25) {With CMS};
+\node (x) at (4.0,-1.95) {$x$};
+\node[blk=cBlue]   (c1) at (6.6,1.1)  {copy 1 \textcolor{cInk!70}{\footnotesize(every step)}};
+\node[blk=cOrange] (c2) at (6.6,0)    {copy 2 \textcolor{cInk!70}{\footnotesize(every 16 steps)}};
+\node[blk=cAqua]   (c3) at (6.6,-1.1) {copy 3 \textcolor{cInk!70}{\footnotesize(every 256 steps)}};
+\coordinate (split) at (4.0,0);
+\draw[line width=0.7pt, draw=cInk!75] (x) -- (split);
+\draw[line width=0.7pt, draw=cInk!75] (split) -- (4.0,1.1);
+\foreach \c in {c1,c2,c3} { \draw[arr] (4.0,0 |- \c.west) -- (\c.west); }
+\node[draw=cInk!80, circle, line width=0.8pt, minimum size=0.8cm, font=\large] (sum) at (10.0,0) {$\Sigma$};
+\draw[arr] (c1.east) -- node[above, lab, pos=0.5] {$w_1$} (sum);
+\draw[arr] (c2.east) -- node[above, lab, pos=0.5] {$w_2$} (sum);
+\draw[arr] (c3.east) -- node[below, lab, pos=0.5] {$w_3$} (sum);
+\node (y) at (10.0,1.6) {$y$};
+\draw[arr] (sum) -- (y);
+\node[lab, align=left, anchor=west] at (10.55,0) {$w = \mathrm{softmax}(a)$,\\ learned; starts at $\tfrac13$ each};
+\node[lab] at (6.9,-2.6) {all copies start as the pretrained MLP, so the layer first computes exactly what it did};
+\end{tikzpicture}

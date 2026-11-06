@@ -1,0 +1,52 @@
+% When each slow copy changes in R3, R4 and R4b (Section 5.2). EarVN: S = 500 steps per task.
+% x axis: 1 task = 2.4 cm, 5 tasks = 2500 steps.
+\begin{tikzpicture}[x=2.4cm, y=0.5cm,
+  lab/.style={font=\footnotesize, text=cInk!85},
+  row/.style={font=\footnotesize, anchor=east}]
+\def\copyrow#1#2#3{% y, colour, label
+  \draw[line width=0.4pt, draw=cInk!25] (0,#1) -- (5,#1);
+  \node[row, text=#2!80!black] at (-0.05,#1) {#3};}
+% task boundaries
+\foreach \t in {0,...,5} { \draw[draw=cInk!35, dashed, line width=0.4pt] (\t,0.4) -- (\t,-13.0); }
+\foreach \t in {1,...,5} { \node[lab] at (\t-0.5,1.0) {Task \t}; }
+% ---------- R3
+\node[font=\small\bfseries, anchor=west, fill=white, inner sep=1.5pt] at (-1.05,-0.2) {R3: periods 1, 16, 256};
+\copyrow{-1.2}{cBlue}{copy 1}
+\copyrow{-2.2}{cOrange}{copy 2}
+\copyrow{-3.2}{cAqua}{copy 3}
+\fill[cBlue] (0,-1.42) rectangle (5,-0.98);
+\foreach \k in {1,...,156} { \draw[cOrange, line width=0.35pt] ({\k*16/500},-2.45) -- ({\k*16/500},-1.95); }
+\foreach \k in {1,...,9} { \draw[cAqua, line width=1.6pt] ({\k*256/500},-3.5) -- ({\k*256/500},-2.9); }
+\node[lab, anchor=west] at (5.05,-2.2) {156 AdamW steps};
+\node[lab, anchor=west] at (5.05,-3.2) {9 AdamW steps};
+% ---------- R4
+\node[font=\small\bfseries, anchor=west, fill=white, inner sep=1.5pt] at (-1.05,-4.7) {R4: periods 1, $S$, $2S$};
+\copyrow{-5.7}{cBlue}{copy 1}
+\copyrow{-6.7}{cOrange}{copy 2}
+\copyrow{-7.7}{cAqua}{copy 3}
+\fill[cBlue] (0,-5.92) rectangle (5,-5.48);
+\foreach \t in {1,...,5} { \draw[cOrange, line width=1.6pt] (\t,-7.0) -- (\t,-6.4); }
+\foreach \t in {2,4} { \draw[cAqua, line width=1.6pt] (\t,-8.0) -- (\t,-7.4); }
+\node[lab, anchor=west] at (5.05,-6.7) {5 AdamW steps};
+\node[lab, anchor=west] at (5.05,-7.7) {2 AdamW steps};
+% ---------- R4b
+\node[font=\small\bfseries, anchor=west, fill=white, inner sep=1.5pt] at (-1.05,-9.2) {R4b: consolidation, $\beta = 0.5$};
+\copyrow{-10.2}{cBlue}{copy 1}
+\copyrow{-11.2}{cOrange}{copy 2}
+\copyrow{-12.2}{cAqua}{copy 3}
+\fill[cBlue] (0,-10.42) rectangle (5,-9.98);
+\foreach \t in {1,...,5} {
+  \draw[-{Stealth[length=1.8mm]}, cOrange, line width=1.0pt] (\t-0.04,-10.45) -- (\t-0.04,-11.2);
+  \fill[cOrange] (\t-0.04,-11.2) circle (2.2pt);
+}
+\foreach \t in {2,4} {
+  \draw[-{Stealth[length=1.8mm]}, cAqua!80!black, line width=1.0pt] (\t-0.12,-11.25) -- (\t-0.12,-12.2);
+  \fill[cAqua] (\t-0.12,-12.2) circle (2.2pt);
+}
+\node[lab, anchor=west] at (5.05,-11.2) {moves half-way to copy 1};
+\node[lab, anchor=west] at (5.05,-12.2) {moves half-way to copy 2};
+% legend
+\fill[cBlue] (0,-13.75) rectangle (0.25,-13.45); \node[lab, anchor=west] at (0.28,-13.6) {gradient step every step};
+\draw[cOrange, line width=1.6pt] (2.05,-13.85) -- (2.05,-13.35); \node[lab, anchor=west] at (2.1,-13.6) {one accumulated AdamW step};
+\draw[-{Stealth[length=1.8mm]}, cOrange, line width=1.0pt] (4.35,-13.35) -- (4.35,-13.85); \node[lab, anchor=west] at (4.4,-13.6) {copy, no gradient};
+\end{tikzpicture}
