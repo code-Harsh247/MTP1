@@ -29,7 +29,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from nlear.cl_methods import EWC, LwF, Replay  # noqa: E402
-from nlear.cms import CMSScheduler, TaskConsolidation  # noqa: E402
+from nlear.cms import CMSScheduler, TaskConsolidation, TaskSnapshot  # noqa: E402
 from nlear.continual import (continual_summary, load_frozen_tasks, make_task_splits,  # noqa: E402
                              seen_task_metrics)
 from nlear.data.cache import GPUAugment, load_image_cache  # noqa: E402
@@ -63,6 +63,10 @@ def default_name(args):
                  f"_p{args.cms_lr_pow:g}")
     elif args.body_cms_periods:
         name += f"_bodycms{args.body_cms_periods.replace(',', '-')}_p{args.body_cms_lr_pow:g}"
+        if args.body_cms_slow == "per-step":
+            name += "_perstep"
+    elif args.snapshot_after_task:
+        name += f"_snapshot{args.snapshot_after_task}"
     elif args.consolidate_every:
         name += f"_consol{args.consolidate_every.replace(',', '-')}_b{args.consolidate_beta:g}"
     elif args.fp32:
@@ -120,6 +124,12 @@ def main():
                     help="R4b: CMS copies without slow gradients; copy l+1 moves toward copy l at the end of "
                          "every n-th task, e.g. 1,2 (nlear.cms.TaskConsolidation)")
     ap.add_argument("--consolidate-beta", type=float, default=0.5, help="R4b: share of the gap closed")
+    ap.add_argument("--body-cms-slow", choices=["sum", "per-step"], default="sum",
+                    help="body CMS slow levels: one AdamW step on the summed gradient (sum, R3/R4), or an "
+                         "AdamW step per gradient applied every period (per-step, R5)")
+    ap.add_argument("--snapshot-after-task", type=int, default=0,
+                    help="R5 upper bound: 3 CMS copies; copies 2-3 take no gradient and are set to copy 1 "
+                         "at the end of this task (1-based), then frozen (nlear.cms.TaskSnapshot)")
     ap.add_argument("--bench", default="", help="study v2: dataset name in benchmark/tasks.yaml; uses its "
                     "frozen task file (hash-checked), and its n_tasks and held-out rule")
     ap.add_argument("--arch", default="", help="override train.arch")
@@ -179,16 +189,20 @@ def main():
     periods = [int(x) for x in args.cms_periods.split(",")] if args.cms_periods else []
     body_periods = [int(x) for x in args.body_cms_periods.split(",")] if args.body_cms_periods else []
     every = [int(x) for x in args.consolidate_every.split(",")] if args.consolidate_every else []
-    if every and body_periods:
-        raise ValueError("--consolidate-every replaces --body-cms-periods; give one of them")
+    if sum(map(bool, (every, body_periods, args.snapshot_after_task))) > 1:
+        raise ValueError("give only one of --body-cms-periods, --consolidate-every and --snapshot-after-task")
+    snap_levels = 3 if args.snapshot_after_task else 0
     model = EmbeddingNet(t["arch"], t["emb_dim"], t["pretrained"], t.get("dropout", 0.0),
                          neck="cms" if periods else "linear", cms_levels=len(periods) or 3,
                          cms_mult=args.cms_mult, img_size=d["img_size"],
-                         body_cms_levels=len(body_periods) or (len(every) + 1 if every else 0)).to(device)
+                         body_cms_levels=len(body_periods) or (len(every) + 1 if every else snap_levels)).to(device)
     consol = TaskConsolidation(model, every, args.consolidate_beta) if every else None
     if consol:
         print(f"Task consolidation: copies 2.. move toward the copy above every {every} tasks, "
               f"beta {args.consolidate_beta}")
+    if args.snapshot_after_task:
+        consol = TaskSnapshot(model, args.snapshot_after_task)
+        print(f"Task snapshot: copies 2-3 frozen; set to copy 1 after task {args.snapshot_after_task}")
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
     cms = None
     if periods:
@@ -199,8 +213,9 @@ def main():
               f"{args.cms_proj_period}, lr_pow {args.cms_lr_pow}; fp32")
     if body_periods:
         t["amp"] = False
-        cms = CMSScheduler.for_body(model, head, t, body_periods, args.body_cms_lr_pow)
-        print(f"Body CMS: copy periods {body_periods}, lr_pow {args.body_cms_lr_pow}; fp32")
+        cms = CMSScheduler.for_body(model, head, t, body_periods, args.body_cms_lr_pow, args.body_cms_slow)
+        print(f"Body CMS: copy periods {body_periods}, lr_pow {args.body_cms_lr_pow}, "
+              f"slow levels {args.body_cms_slow}; fp32")
     if args.fp32:
         t["amp"] = False
     scaler = torch.amp.GradScaler(enabled=t["amp"] and device.type == "cuda")

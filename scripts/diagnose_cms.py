@@ -71,6 +71,10 @@ def diagnose(run_dir, device):
         every = [int(x) for x in a["consolidate_every"].split(",")]
         labels = ["every step"] + [f"consolidated every {e} task{'s' if e > 1 else ''}" for e in every]
         periods = [1] + every
+    if a.get("snapshot_after_task"):   # R5: copies 2-3 frozen at copy 1's weights after one task
+        k = a["snapshot_after_task"]
+        labels = ["every step", f"frozen after task {k}", f"frozen after task {k}"]
+        periods = [1, 0, 0]
     bench = yaml.safe_load(open(ROOT / "benchmark" / "tasks.yaml"))["datasets"][a["bench"]]
     T = bench["n_tasks"]
     h, w = d["img_size"]
