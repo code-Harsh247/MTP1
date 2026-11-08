@@ -1,0 +1,56 @@
+# Study v2, R5b: does R5's dilution result hold, and is the blend of the copies the bottleneck?
+# EXPLORATORY. Designed after R5 was seen (notes/r5_cms_why.md) and committed before any R5b run.
+#
+# R5 found, on EarVN ConvNeXt-T only, that a slow memory frozen at the task-1 weights (copies 2-3,
+# nlear.cms.TaskSnapshot) cut task-1 forgetting from 0.445 to 0.272, while one frozen copy alone kept
+# 0.79 task-1 rank-1 against 0.58 for the whole model: the memory is kept but diluted.
+#
+# Experiment 1 (generality). The same snapshot run (copies 2-3 set to copy 1 after task 1, frozen;
+#   mixing learned) on the other 8 cells with shown forgetting, every reported seed.
+#   Primary readout: task-1 rank-1 forgetting (column 1 of A) against naive's, per cell.
+#   Secondary: R3's REDUCED / FIXED test on overall forgetting (benchmark/r3_rule.yaml).
+#   Diagnostics (saved weights, seed 1) on three of them: EarVN ResNet-50, EarVN DeiT-S, AWE Swin-T.
+#   Reading: dilution generalises if, in each diagnosed cell, a frozen copy used alone scores at
+#   least 0.10 higher on task 1 than the whole model. It does not if the whole model keeps task 1 as
+#   well as the frozen copy alone.
+#
+# Experiment 2 (is the blend the bottleneck?). Snapshot runs whose mixing weights are fixed after
+#   task 1 so that the two frozen copies together carry a share s of every CMS layer's output (split
+#   equally), and copy 1 carries 1 - s. Before that point the weights are learned, as in R5 (where
+#   the frozen share ended near 0.6). s in {0.8, 0.95}; cells EarVN ConvNeXt-T (where 93% of naive's
+#   lost task-1 accuracy is in the pointwise layers) and EarVN DeiT-S (where most of it is outside them).
+#   Primary readout: task-1 forgetting against the learned-mixing snapshot (R5 / experiment 1);
+#   cost: last-task rank-1 and final average rank-1.
+#   Reading: if task-1 forgetting falls clearly as s grows on ConvNeXt-T (s = 0.95 at most half the
+#   learned snapshot's), the blend is the bottleneck there; if it barely moves, the neck and the
+#   rest of the backbone dominate. DeiT-S is expected to move less, since most of its forgetting
+#   lies outside CMS.
+#
+# Experiment 3 (a second diagnostic seed). EarVN ConvNeXt-T seed 2: naive, R3, snapshot and the
+#   s = 0.95 snapshot, with saved weights, to check R5's seed-1 diagnostics.
+#
+# No new tuning: every run uses its cell's R1 recipe.
+snapshot_after_task: 1
+cells_exp1:                                    # the shown cells R5 did not cover
+  - {dataset: earvn, model: classic_cnn}
+  - {dataset: earvn, model: lightweight_cnn}
+  - {dataset: earvn, model: plain_transformer}
+  - {dataset: earvn, model: hierarchical_transformer}
+  - {dataset: awe, model: modern_cnn}
+  - {dataset: awe, model: plain_transformer}
+  - {dataset: awe, model: hierarchical_transformer}
+  - {dataset: ami, model: plain_transformer}
+diag_exp1:                                     # seed 1, arm r5snap
+  - {dataset: earvn, model: classic_cnn}
+  - {dataset: earvn, model: plain_transformer}
+  - {dataset: awe, model: hierarchical_transformer}
+mix_shares: [0.8, 0.95]
+cells_exp2:
+  - {dataset: earvn, model: modern_cnn}
+  - {dataset: earvn, model: plain_transformer}
+diag_exp3:
+  dataset: earvn
+  model: modern_cnn
+  seed: 2
+  arms: [naive, r3, r5snap, r5bmix95]
+diag_seed: 1

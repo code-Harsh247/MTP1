@@ -10,6 +10,8 @@ Arms:
     r5pow1    R3's periods with the slow lr scaled by the period (lr_pow 1)       (R5 exp. 1a)
     r5step    R3's periods, slow levels in per-step mode                           (R5 exp. 1b)
     r5snap    copies 2-3 frozen at copy 1's weights after task 1                   (R5 exp. 3)
+    r5bmix80  r5snap with the frozen copies' mixing share fixed at 0.8 then       (R5b exp. 2)
+    r5bmix95  the same at 0.95                                                    (R5b exp. 2)
 
     python scripts/run_cms_diagnostics.py                       # EarVN ConvNeXt-T, seed 1: naive, r3, r4
     python scripts/run_cms_diagnostics.py --arms r3 --data configs/earvn_kaggle.yaml \
@@ -44,6 +46,11 @@ def arm_table(S, pow_, slow_tasks, r4b, r5):
                    ["--body-cms-periods", r3p, "--body-cms-lr-pow", "0", "--body-cms-slow", "per-step"]),
         "r5snap": ("R5 snapshot", f"naive_snapshot{r5['snapshot_after_task']}",
                    ["--snapshot-after-task", str(r5["snapshot_after_task"])]),
+        **{f"r5bmix{round(s * 100)}": (f"R5b snapshot, frozen share {s:g}",
+                                      f"naive_snapshot{r5['snapshot_after_task']}_mix{round(s * 100)}",
+                                      ["--snapshot-after-task", str(r5["snapshot_after_task"]),
+                                       "--snapshot-mix", f"{s:g}"])
+           for s in (0.8, 0.95)},
     }
 
 

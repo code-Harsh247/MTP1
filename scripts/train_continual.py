@@ -67,6 +67,8 @@ def default_name(args):
             name += "_perstep"
     elif args.snapshot_after_task:
         name += f"_snapshot{args.snapshot_after_task}"
+        if args.snapshot_mix:
+            name += f"_mix{round(args.snapshot_mix * 100)}"
     elif args.consolidate_every:
         name += f"_consol{args.consolidate_every.replace(',', '-')}_b{args.consolidate_beta:g}"
     elif args.fp32:
@@ -130,6 +132,9 @@ def main():
     ap.add_argument("--snapshot-after-task", type=int, default=0,
                     help="R5 upper bound: 3 CMS copies; copies 2-3 take no gradient and are set to copy 1 "
                          "at the end of this task (1-based), then frozen (nlear.cms.TaskSnapshot)")
+    ap.add_argument("--snapshot-mix", type=float, default=0.0,
+                    help="R5b: with --snapshot-after-task, fix the mixing weights at that moment so the frozen "
+                         "copies carry this share of each CMS layer's output (0 = keep learning them)")
     ap.add_argument("--bench", default="", help="study v2: dataset name in benchmark/tasks.yaml; uses its "
                     "frozen task file (hash-checked), and its n_tasks and held-out rule")
     ap.add_argument("--arch", default="", help="override train.arch")
@@ -189,6 +194,8 @@ def main():
     periods = [int(x) for x in args.cms_periods.split(",")] if args.cms_periods else []
     body_periods = [int(x) for x in args.body_cms_periods.split(",")] if args.body_cms_periods else []
     every = [int(x) for x in args.consolidate_every.split(",")] if args.consolidate_every else []
+    if args.snapshot_mix and not args.snapshot_after_task:
+        raise ValueError("--snapshot-mix needs --snapshot-after-task")
     if sum(map(bool, (every, body_periods, args.snapshot_after_task))) > 1:
         raise ValueError("give only one of --body-cms-periods, --consolidate-every and --snapshot-after-task")
     snap_levels = 3 if args.snapshot_after_task else 0
@@ -201,8 +208,10 @@ def main():
         print(f"Task consolidation: copies 2.. move toward the copy above every {every} tasks, "
               f"beta {args.consolidate_beta}")
     if args.snapshot_after_task:
-        consol = TaskSnapshot(model, args.snapshot_after_task)
+        consol = TaskSnapshot(model, args.snapshot_after_task, args.snapshot_mix or None)
         print(f"Task snapshot: copies 2-3 frozen; set to copy 1 after task {args.snapshot_after_task}")
+        if args.snapshot_mix:
+            print(f"  mixing fixed then: frozen copies carry {args.snapshot_mix:g} of each CMS layer")
     head = ArcFace(t["emb_dim"], len(classes), t["arcface_s"], t["arcface_m"]).to(device)
     cms = None
     if periods:

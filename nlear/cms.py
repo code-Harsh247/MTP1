@@ -69,14 +69,21 @@ class TaskSnapshot:
     slow copy is set to copy 1's weights and then never changes again, so 2 of the 3 copies hold the
     model's pointwise layers exactly as they were after that task. Before that they stay at the
     pretrained weights, so the model computes the plain model until copy 1 starts to move.
+
+    R5b: with `frozen_share` s, at the same moment the mixing weights are fixed so that the frozen
+    copies together carry s of the layer's output (split equally) and copy 1 carries 1 - s; they take
+    no gradient afterwards. Before that point they are learned, as without it.
     """
 
-    def __init__(self, model, after):
+    def __init__(self, model, after, frozen_share=None):
         from .models import CMSParallel
         self.mods = [m for m in model.body.modules() if isinstance(m, CMSParallel)]
         if not self.mods or any(len(m.copies) < 2 for m in self.mods):
             raise ValueError("need CMSParallel modules with at least 2 copies")
+        if frozen_share is not None and not 0 < frozen_share < 1:
+            raise ValueError("frozen_share must be strictly between 0 and 1")
         self.after = after
+        self.frozen_share = frozen_share
         for m in self.mods:
             for c in m.copies[1:]:
                 c.requires_grad_(False)
@@ -91,6 +98,12 @@ class TaskSnapshot:
             for slow in m.copies[1:]:
                 for s, f in zip(slow.parameters(), m.copies[0].parameters()):
                     s.copy_(f)
+            if self.frozen_share is not None:
+                n_slow = len(m.copies) - 1
+                w = torch.tensor([1 - self.frozen_share] + [self.frozen_share / n_slow] * n_slow)
+                m.agg_logits.copy_(w.log().to(m.agg_logits))
+                m.agg_logits.requires_grad_(False)
+                m.agg_logits.grad = None
         for l in self.n_updates:
             self.n_updates[l] += 1
 
