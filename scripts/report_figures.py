@@ -159,10 +159,58 @@ def fig_diag():
     fig.savefig(OUT / "cms_copy_movement.pdf")
 
 
+def fig_r5():
+    """R5 on EarVN ConvNeXt-T: task-1 rank-1 over the tasks (mean of seeds 1-3), and each copy alone (seed 1)."""
+    t = tag("earvn", "modern_cnn")
+    seeds = [s for s in bench["earvn"]["seeds"] if s != 0]
+    arms = [("Naive", RUNS / "r2", "naive"), ("R3 CMS", RUNS / "r3", "naive_bodycms1-16-256_p0"),
+            ("R5 per-step", RUNS / "r5", "naive_bodycms1-16-256_p0_perstep"),
+            ("R5 snapshot", RUNS / "r5", "naive_snapshot1")]
+    fig, axes = plt.subplots(1, 2, figsize=(6.3, 2.6), gridspec_kw={"width_ratios": [1, 1.25]})
+    for i, (lab, root, folder) in enumerate(arms):
+        cols = []
+        for s in seeds:
+            m = json.load(open(root / "earvn" / "continual" / f"{folder}_{t}" / f"seed{s}" / "metrics.json"))
+            cols.append([row[0]["rank1"] for row in m["A"]])
+        axes[0].plot(range(1, 6), np.mean(cols, 0), marker="o", markersize=4, linewidth=2, color=C[i], label=lab)
+    axes[0].set_xlabel("After task")
+    axes[0].set_ylabel("Task-1 rank-1")
+    axes[0].set_xticks(range(1, 6))
+    axes[0].set_ylim(0, 1)
+    axes[0].yaxis.grid(True, color="#e4e3de", linewidth=0.6)
+    axes[0].legend(loc="lower left", fontsize=7)
+    axes[0].set_title("Task 1 over the tasks (3 seeds)", fontsize=9, color=INK)
+
+    base = RUNS / "diag" / "earvn" / "continual"
+    runs = [("R3", "naive_bodycms1-16-256_p0"), ("R5\nper-step", "naive_bodycms1-16-256_p0_perstep"),
+            ("R4b", "naive_consol1-2_b0.5"), ("R5\nsnapshot", "naive_snapshot1")]
+    labels = ["Copy 1 alone", "Copy 2 alone", "Copy 3 alone", "All copies"]
+    x = np.arange(len(runs))
+    w = 0.2
+    for j, lab in enumerate(labels):
+        vals = []
+        for _, folder in runs:
+            alone = json.load(open(base / f"{folder}_{t}" / "seed1" / "diag.json"))["one_copy_only"]
+            vals.append(list(alone.values())[j]["task1"])
+        colour = INK if j == 3 else C[j]
+        axes[1].bar(x + (j - 1.5) * w, vals, w, color=colour, label=lab, edgecolor="white", linewidth=0.5)
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels([r for r, _ in runs], fontsize=8)
+    axes[1].set_ylim(0, 1)
+    axes[1].yaxis.grid(True, color="#e4e3de", linewidth=0.6)
+    axes[1].set_axisbelow(True)
+    axes[1].set_ylabel("Task-1 rank-1 at the end")
+    axes[1].legend(loc="upper left", fontsize=7, ncol=2)
+    axes[1].set_title("Each copy used alone (seed 1)", fontsize=9, color=INK)
+    fig.tight_layout()
+    fig.savefig(OUT / "r5_memory.pdf")
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     fig_r2()
     fig_matrix()
     fig_cms()
     fig_diag()
+    fig_r5()
     print("figures written to", OUT)
