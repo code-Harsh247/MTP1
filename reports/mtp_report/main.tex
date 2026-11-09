@@ -117,7 +117,7 @@ Kharagpur - 721302, India
 {\Large\bfseries Abstract}
 \end{center}
 \vspace{0.6cm}
-\noindent A deployed ear recognition system must enroll new people over time without being retrained from scratch. When a network is trained on new people one group after another, it tends to lose what it learned about earlier groups: this is catastrophic forgetting. This report does two things. First, it measures forgetting in a frozen, pre-registered benchmark: five model families (ResNet-50, ConvNeXt-T, MobileNetV3, DeiT-S and Swin-T) on four public ear datasets (AMI, AWE, IITD-I and EarVN1.0), each split into five tasks of new identities, with a jointly trained model as the upper bound. Under a strict rule that must hold on every seed, forgetting is shown in 9 of the 20 model--dataset cells: in all five families on EarVN, in three on AWE and in one on AMI; IITD shows none on rank-1. Learning without Forgetting and a small replay buffer cut EarVN forgetting by 0.17--0.29. Second, it tests whether the Continuum Memory System (CMS) of Nested Learning, placed in the pointwise layers of every backbone, reduces this forgetting. Against a decision rule committed before the runs, CMS reduced forgetting in none of the 9 cells (largest drop 0.036), and adding it to replay helped in none of 20. Diagnostics on EarVN ConvNeXt-T show that 93\% of the forgotten accuracy lies in exactly the layers CMS replaces, but that the slow memory copies moved only 0.4--1\% from their pretrained weights, against 10\% for the fast copy. Two exploratory variants, task-aligned update periods and explicit consolidation at task boundaries, reduced forgetting in 2 and 0 of the 9 cells. A final exploratory stage tested two explanations. Giving the slow copies full-size updates made them move, but they then learned the newest people and forgetting rose. Freezing two of the three copies at their task-1 weights cut task-1 forgetting from 0.45 to 0.27, yet a frozen copy alone still scored 0.79 on task~1 while the whole model scored 0.58: the old memory is kept but diluted by the weighted sum and by the parts outside CMS. Catastrophic forgetting in ear recognition is real and model-independent on large datasets, and CMS as applied here does not fix it; the evidence points to how the copies are combined, not how often they are updated.
+\noindent A deployed ear recognition system must enroll new people over time without being retrained from scratch. When a network is trained on new people one group after another, it tends to lose what it learned about earlier groups: this is catastrophic forgetting. This report does two things. First, it measures forgetting in a frozen, pre-registered benchmark: five model families (ResNet-50, ConvNeXt-T, MobileNetV3, DeiT-S and Swin-T) on four public ear datasets (AMI, AWE, IITD-I and EarVN1.0), each split into five tasks of new identities, with a jointly trained model as the upper bound. Under a strict rule that must hold on every seed, forgetting is shown in 9 of the 20 model--dataset cells: in all five families on EarVN, in three on AWE and in one on AMI; IITD shows none on rank-1. Learning without Forgetting and a small replay buffer cut EarVN forgetting by 0.17--0.29. Second, it tests whether the Continuum Memory System (CMS) of Nested Learning, placed in the pointwise layers of every backbone, reduces this forgetting. Against a decision rule committed before the runs, CMS reduced forgetting in none of the 9 cells (largest drop 0.036), and adding it to replay helped in none of 20. Diagnostics on EarVN ConvNeXt-T show that 93\% of the forgotten accuracy lies in exactly the layers CMS replaces, but that the slow memory copies moved only 0.4--1\% from their pretrained weights, against 10\% for the fast copy. Two exploratory variants, task-aligned update periods and explicit consolidation at task boundaries, reduced forgetting in 2 and 0 of the 9 cells. A final exploratory stage tested two explanations. Giving the slow copies full-size updates made them move, but they then learned the newest people and forgetting rose. Freezing two of the three copies at their task-1 weights cut task-1 forgetting from 0.45 to 0.27, yet a frozen copy alone still scored 0.79 on task~1 while the whole model scored 0.58: the old memory is kept but diluted by the weighted sum. Repeated on all 9 cells, this frozen memory reduced overall forgetting in only 2 cells, and on most cells examined most of the forgetting lies outside the layers CMS replaces. Catastrophic forgetting in ear recognition is real and model-independent on large datasets, and CMS as applied here does not fix it: its memory is diluted where it is placed, and much of the forgetting happens elsewhere.
 
 \vspace{1.4cm}
 \noindent \textbf{Keywords:} \textit{Ear Recognition,\linebreak[1] Continual Learning, Catastrophic Forgetting, Nested Learning, Continuum Memory System, Biometrics.}
@@ -165,7 +165,7 @@ The study answers three research questions:
 \end{itemize}
 
 \section{Approach}
-Every dataset is its own experiment, and every comparison is made on the same frozen splits, task lists, input size, training budget and metrics. Each decision rule was written down and committed to the project's version history before the runs it judges, and each verdict was recomputed from the raw accuracy matrices by a separate script. The work is organised in stages: R0 freezes the benchmark; R1 tunes a recipe per model and dataset and trains the joint upper bound; R2 measures forgetting (RQ1); R3 tests CMS (RQ2); diagnostics explain the R3 result; R4 and R4b are exploratory follow-ups towards RQ3; and R5 tests why CMS failed (Figure~\ref{fig:pipeline}).
+Every dataset is its own experiment, and every comparison is made on the same frozen splits, task lists, input size, training budget and metrics. Each decision rule was written down and committed to the project's version history before the runs it judges, and each verdict was recomputed from the raw accuracy matrices by a separate script. The work is organised in stages: R0 freezes the benchmark; R1 tunes a recipe per model and dataset and trains the joint upper bound; R2 measures forgetting (RQ1); R3 tests CMS (RQ2); diagnostics explain the R3 result; R4 and R4b are exploratory follow-ups towards RQ3; and R5 and R5b test why CMS failed (Figure~\ref{fig:pipeline}).
 
 \begin{figure}[H]
 \centering
@@ -179,8 +179,8 @@ Every dataset is its own experiment, and every comparison is made on the same fr
 \item \textbf{A frozen continual ear recognition benchmark} across four datasets and five model families, with hash-pinned splits and task lists, open-set evaluation of seen people, and a pre-registered rule for when forgetting counts as shown.
 \item \textbf{Evidence that forgetting is real and model-independent on large data:} all five families forget heavily on EarVN (rank-1 forgetting 0.33--0.48), while near-ceiling datasets hide it on rank-1.
 \item \textbf{The first test of NL's CMS on vision backbones for biometrics,} with a pre-registered decision rule, giving a clear negative result.
-\item \textbf{Diagnostics that locate the failure:} on a CNN, forgetting sits in the layers CMS replaces; making the slow copies learn more does not help, and even a perfectly kept memory is diluted by the weighted sum of the copies.
-\item \textbf{Exploratory CMS variants and tests (R4, R4b, R5),} reported with the same test, which narrow down what would have to change.
+\item \textbf{Diagnostics that locate the failure:} making the slow copies learn more does not help; a perfectly kept memory is diluted by the weighted sum of the copies; and on most cells examined the forgetting lies largely outside the layers CMS replaces.
+\item \textbf{Exploratory CMS variants and tests (R4, R4b, R5, R5b),} reported with the same test, which narrow down what would have to change.
 \end{itemize}
 
 
@@ -323,10 +323,10 @@ The arms compared on each cell are:
 \end{itemize}
 
 \section{Pre-registration and Checks}
-Each stage's design, decision rule and report script were committed before its runs. Verdicts were produced by the committed report scripts and then recomputed from the raw accuracy matrices by a separate calculation; all verdicts in this report agree between the two. Negative results are reported as they came out, and no rule was relaxed after its results were seen. R4, R4b and R5 were designed after R3 had been seen, so they are labelled exploratory throughout.
+Each stage's design, decision rule and report script were committed before its runs. Verdicts were produced by the committed report scripts and then recomputed from the raw accuracy matrices by a separate calculation; all verdicts in this report agree between the two. Negative results are reported as they came out, and no rule was relaxed after its results were seen. R4, R4b, R5 and R5b were designed after R3 had been seen, so they are labelled exploratory throughout.
 
 \section{Compute}
-All reported runs were made on Kaggle notebooks with two NVIDIA Tesla T4 GPUs each, using PyTorch and \texttt{timm} 1.0.30, with a runner that schedules one run per GPU and logs every run. In total 966 training runs are reported: 210 in R1, 440 in R2, 220 in R3, 35 each in R4 and R4b, 15 in R5, and 11 diagnostic runs. Every cell compares runs made on the same kind of machine.
+All reported runs were made on Kaggle notebooks with two NVIDIA Tesla T4 GPUs each, using PyTorch and \texttt{timm} 1.0.30, with a runner that schedules one run per GPU and logs every run. In total 1017 training runs are reported: 210 in R1, 440 in R2, 220 in R3, 35 each in R4 and R4b, 15 in R5, 44 in R5b, and 18 diagnostic runs. Every cell compares runs made on the same kind of machine.
 
 % ================================================================== CHAPTER 4
 \chapter{Experiments and Results}\label{ch:results}
@@ -474,7 +474,7 @@ With fixed periods of 16 and 256 steps, the slowest copy updates only one to thr
 % ================================================================== CHAPTER 5
 \chapter{Analysis: Why CMS Did Not Reduce Forgetting}\label{ch:analysis}
 
-NL motivates CMS precisely as a remedy for forgetting, so its failure needs an explanation. This chapter reports diagnostics on one cell, two exploratory variants that follow from them, and a final exploratory stage (R5) that tests the two explanations the diagnostics suggest.
+NL motivates CMS precisely as a remedy for forgetting, so its failure needs an explanation. This chapter reports diagnostics on one cell, two exploratory variants that follow from them, and two final exploratory stages (R5 and R5b) that test the explanations the diagnostics suggest.
 
 \section{Diagnostics}
 Three runs of EarVN ConvNeXt-T, seed 1 (naive, R3 CMS and a task-aligned CMS from R4) were repeated with their weights saved after every task. In every run the reloaded weights reproduced the logged accuracies exactly. Four tests were made. They explain this one cell; they are not a measurement across the study.
@@ -611,7 +611,60 @@ The localisation test was repeated (seed~1, naive and R3) on EarVN DeiT-S and AW
 \item \textbf{B is supported.} A perfectly kept memory of task~1 cuts its forgetting by about 40\%, but the weighted sum lets the moving copy and the parts outside CMS override it.
 \item \textbf{On transformers, much of the forgetting is outside the pointwise layers.}
 \end{itemize}
-The tests of A and B use one dataset and two CNNs, the diagnostics a single seed, and the test of B an oracle.
+The tests of A and B use one dataset and two CNNs, the diagnostics a single seed, and the test of B an oracle. R5b checks the test of B more widely.
+
+\section{R5b: How General Is the Dilution?}\label{sec:r5b}
+R5b was designed after R5 and committed before its runs. It is exploratory. Its verdicts were recomputed from the raw accuracy matrices by a separate script, with no mismatches. It asks two things. Does R5's result on EarVN ConvNeXt-T hold on the other cells? Is the blend of the copies the bottleneck?
+
+\subsection{The snapshot oracle on all 9 cells}
+The snapshot run of Section~\ref{sec:r5} (copies 2 and 3 frozen at the task-1 weights, mixing learned) was repeated on the other 8 cells with shown forgetting, on every reported seed. Task-1 forgetting fell in all 9 cells (Figure~\ref{fig:r5b}, left), but by very different amounts:
+\begin{itemize}
+\item about 0.16--0.17 on the EarVN ConvNeXt-T and ResNet-50 and on AWE Swin-T;
+\item 0.07--0.09 on the other transformers and on AWE ConvNeXt-T;
+\item 0.02 on MobileNetV3.
+\end{itemize}
+On EarVN and AWE, task~1 still lost at least 0.24 of rank-1. Judged on overall forgetting by R3's rule, the oracle reduced forgetting in 2 cells (the two EarVN CNNs). It fixed 1 cell, AMI DeiT-S (0.161 to 0.079, all 5 seeds better, final rank-1 0.903 against 1.000 for joint), the near-ceiling dataset with the mildest forgetting. This is an oracle that knows when task~1 ends and protects only task~1, so it bounds what a slow memory in the pointwise layers could do. It is not a method.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{r5b_memory.pdf}
+\caption{Left: task-1 rank-1 forgetting of naive training and of the snapshot oracle on the 9 cells with shown forgetting (mean over seeds). Right: task-1 forgetting on EarVN when the frozen copies' share of each CMS layer's output is fixed after task~1 (the first point is learned mixing; mean of 3 seeds); dashed lines are naive.}
+\label{fig:r5b}
+\end{figure}
+
+The diagnostics were repeated with saved weights on three more cells (seed~1). The test fixed in advance was this: in each cell, a frozen copy used alone should beat the whole model on task~1 by at least 0.10 (Table~\ref{tab:r5b}). That held on the EarVN CNNs and, only just, on EarVN DeiT-S, but not on AWE Swin-T. There the frozen copy alone does no better than the whole model. Restoring any copy or the mixing weights recovers nothing, and all of the lost accuracy lies in the rest of the backbone. Outside the EarVN ConvNeXt-T, the part whose restoration recovers most is always the rest of the backbone, not the pointwise copies. So dilution is real where it occurs, but in most cells examined the forgetting outside CMS is the larger effect.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Snapshot runs, seed 1: task-1 rank-1 at the end for the whole model and for one frozen copy used alone, and the part whose restoration recovers most of the lost task-1 accuracy (shares from different parts overlap).}
+\label{tab:r5b}
+\begin{tabular}{|l|c|c|c|l|}
+\hline
+\textbf{Cell} & \textbf{Whole} & \textbf{Frozen copy} & \textbf{Gap} & \textbf{Main location} \\
+ & \textbf{model} & \textbf{alone} & & \\
+\hline
+EarVN ConvNeXt-T (R5) & 0.577 & 0.787 & +0.21 & copy 1 (94\%) \\
+EarVN ResNet-50 & 0.441 & 0.573 & +0.13 & rest of backbone (64\%) \\
+EarVN DeiT-S & 0.365 & 0.469 & +0.10 & rest of backbone (104\%) \\
+AWE Swin-T & 0.429 & 0.429 & 0.00 & rest of backbone (125\%) \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Fixing the share of the old memory}
+On EarVN ConvNeXt-T and DeiT-S the snapshot was repeated with the mixing weights fixed after task~1. The two frozen copies then carry a share $s$ of every CMS layer's output and copy~1 the rest, with $s = 0.8$ or $0.95$. With learned mixing, $s$ ends near 0.6.
+
+On ConvNeXt-T, task-1 forgetting fell steadily with $s$: 0.272 (learned), 0.228 ($s = 0.8$) and 0.171 ($s = 0.95$), lower than learned mixing on every seed at $s = 0.95$ (Figure~\ref{fig:r5b}, right). The newest people were learned less well: last-task rank-1 fell from 0.929 to 0.872, so final average rank-1 stayed at 0.63--0.64. The threshold set in advance, that $s = 0.95$ at least halves task-1 forgetting, was not met. A diagnostic run at $s = 0.95$ (seed~2) shows where the rest goes: restoring the neck alone recovers 93\% of the lost task-1 accuracy, and the rest of the backbone 91\%. On DeiT-S, fixing the share changed nothing (0.438, 0.445, 0.434), as expected from where its forgetting lies.
+
+A second diagnostic seed on EarVN ConvNeXt-T replicated R5's seed-1 diagnostics. In the plain model the pointwise layers hold 86\% of the lost task-1 accuracy (93\% on seed~1), and with R3 copy~1 holds 47\% (47\%). In the snapshot run the gap between a frozen copy alone and the whole model is +0.33 (+0.21).
+
+\subsection{What R5b shows}
+\begin{itemize}
+\item \textbf{Where CMS covers the forgetting (EarVN ConvNeXt-T), the R5 result holds on a second seed.} Giving the kept memory more of the output reduces forgetting further, but costs accuracy on new people, and the remaining forgetting moves to the neck and the rest of the backbone.
+\item \textbf{Elsewhere, the forgetting is mostly outside the pointwise layers.} Even a perfect memory of task~1 in those layers reduces overall forgetting by R3's test in only 2 of 9 cells.
+\item \textbf{Dilution is one cause, not the whole explanation.} The larger and more general cause is that the parts CMS does not cover forget on their own.
+\end{itemize}
 
 % ================================================================== CHAPTER 6
 \chapter{Conclusions}\label{ch:conclusions}
@@ -620,7 +673,7 @@ The tests of A and B use one dataset and two CNNs, the diagnostics a single seed
 \begin{itemize}
 \item \textbf{RQ1: yes, on large data.} All five model families forget heavily when they learn EarVN's people in groups (rank-1 forgetting 0.33--0.48), and three of five do on AWE. Near-ceiling datasets (AMI, IITD) hide forgetting on rank-1. Forgetting does not depend on whether the model is a CNN or a transformer.
 \item \textbf{RQ2: no.} Under a rule fixed before the runs, CMS in the pointwise layers reduced forgetting in none of the 9 cells, and adding it to replay helped in none of 20. Simple baselines (LwF, replay) do far better on the same cells.
-\item \textbf{RQ3: not yet.} Of two exploratory variants, task-aligned periods came closest (2 of 9 cells reduced), and explicit consolidation did not help. R5 shows that the problem is not only that slow levels learn too little: given full-size updates they learn the new people as well, and even a perfectly kept memory is diluted by the weighted sum of the copies and by forgetting outside CMS. A working version would need a way for the old memory to reach the output, not only to be stored.
+\item \textbf{RQ3: not yet.} Of two exploratory variants, task-aligned periods came closest (2 of 9 cells reduced), and explicit consolidation did not help. R5 shows that the problem is not only that slow levels learn too little: given full-size updates they learn the new people as well, and even a perfectly kept memory is diluted by the weighted sum of the copies. R5b shows that this is only part of the problem: on most cells examined the forgetting lies largely outside the pointwise layers, so even a perfect memory there reduces overall forgetting in only 2 of 9 cells. A working version would need its memory to cover the neck and the rest of the backbone, and a way for that memory to reach the output.
 \end{itemize}
 
 \section{Novelty and Contributions}
@@ -632,8 +685,8 @@ The study gives a pre-registered, multi-family benchmark of continual ear recogn
 \item \textbf{Few seeds on EarVN} (three) and \textbf{tiny per-task tests on AMI and AWE}, where one probe moves a task's rank-1 by 0.07.
 \item \textbf{EarVN recipes sit at the corner of the R1 grid,} so longer training could change how much is forgotten.
 \item \textbf{One CMS placement and one aggregation.} Only the independent variant in the pointwise layers was tested, not chained or nested CMS, and not CMS in the neck.
-\item \textbf{The diagnostics use one seed,} mostly on EarVN ConvNeXt-T, with two further cells in R5.
-\item \textbf{R4, R4b and R5 are exploratory:} they were designed after R3 was seen and need confirmation on fresh seeds. R5's test of dilution uses an oracle that knows the task boundary.
+\item \textbf{The diagnostics use one or two seeds,} on EarVN ConvNeXt-T and five further cells.
+\item \textbf{R4, R4b, R5 and R5b are exploratory:} they were designed after R3 was seen and need confirmation on fresh seeds. The tests of dilution use an oracle that knows the task boundary and protects only task~1.
 \item \textbf{Compute:} all runs were on Kaggle T4 GPUs within session limits, which bounded the grids.
 \end{itemize}
 
@@ -641,7 +694,7 @@ The study gives a pre-registered, multi-family benchmark of continual ear recogn
 \begin{itemize}
 \item \textbf{Let the old memory reach the output.} Instead of a fixed weighted sum, select or gate the copies per input, or keep the slow copies' share of the output from shrinking, so that a copy that remembers old people is not overridden.
 \item \textbf{Protect slow copies from new data.} R5 shows that full-size gradient updates make slow copies forget too; consolidation with a smaller $\beta$, or updates that change slow copies only where the fast copy has settled, are candidates.
-\item \textbf{Other placements,} such as CMS in the embedding neck and in attention, where much of the transformers' forgetting lies, and the chained and nested variants.
+\item \textbf{Wider placement.} R5b shows that most forgetting lies outside the pointwise layers on most cells examined, so CMS should also cover the embedding neck, attention and normalisation layers. The chained and nested variants remain untested.
 \item \textbf{UERC 2023,} to test all results at the scale of a thousand identities.
 \item \textbf{Combining CMS with LwF,} the strongest replay-free method here, for continual enrollment without storing biometric images.
 \end{itemize}

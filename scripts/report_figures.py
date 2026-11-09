@@ -206,8 +206,61 @@ def fig_r5():
     fig.savefig(OUT / "r5_memory.pdf")
 
 
+def fig_r5b():
+    """R5b: task-1 forgetting, naive vs. the snapshot oracle on all 9 shown cells (mean over seeds), and
+    task-1 forgetting against the frozen copies' share of the output on EarVN ConvNeXt-T and DeiT-S."""
+    def t1(m):
+        A = np.array([[c["rank1"] for c in row] for row in m["A"]])
+        return A[:-1, 0].max() - A[-1, 0]
+
+    def runs(root, name, key, folder):
+        out = []
+        for s in [s for s in bench[name]["seeds"] if s != 0]:
+            p = root / name / "continual" / f"{folder}_{tag(name, key)}" / f"seed{s}" / "metrics.json"
+            out.append(json.load(open(p)))
+        return out
+
+    fig, axes = plt.subplots(1, 2, figsize=(6.3, 2.7), gridspec_kw={"width_ratios": [1.7, 1]})
+    labels, naive, snap = [], [], []
+    for name, key in SHOWN:
+        labels.append(f"{DS[name]}\n{NAMES[key].replace('MobileNetV3', 'MobileNet')}")
+        naive.append(np.mean([t1(m) for m in runs(RUNS / "r2", name, key, "naive")]))
+        root = RUNS / ("r5" if (name, key) == ("earvn", "modern_cnn") else "r5b")
+        snap.append(np.mean([t1(m) for m in runs(root, name, key, "naive_snapshot1")]))
+    x = np.arange(len(labels))
+    axes[0].bar(x - 0.2, naive, 0.4, color=C[0], label="Naive")
+    axes[0].bar(x + 0.2, snap, 0.4, color=C[3], label="Snapshot (oracle)", hatch=HATCH[1], edgecolor="white",
+                linewidth=0.5)
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(labels, fontsize=6.5, rotation=90)
+    axes[0].set_ylabel("Task-1 rank-1 forgetting")
+    axes[0].yaxis.grid(True, color="#e4e3de", linewidth=0.6)
+    axes[0].set_axisbelow(True)
+    axes[0].set_ylim(0, 0.68)
+    axes[0].legend(loc="upper left", fontsize=7, ncol=2)
+    axes[0].set_title("A perfect memory of task 1, all 9 cells", fontsize=9, color=INK)
+
+    for i, key in enumerate(("modern_cnn", "plain_transformer")):
+        learned = runs(RUNS / ("r5" if key == "modern_cnn" else "r5b"), "earvn", key, "naive_snapshot1")
+        xs = [np.mean([1 - m["log"][-1]["mix_weights"][0] for m in learned]), 0.8, 0.95]
+        ys = [np.mean([t1(m) for m in learned])] + [
+            np.mean([t1(m) for m in runs(RUNS / "r5b", "earvn", key, f"naive_snapshot1_mix{v}")]) for v in (80, 95)]
+        base = np.mean([t1(m) for m in runs(RUNS / "r2", "earvn", key, "naive")])
+        col = C[i * 2]
+        axes[1].plot(xs, ys, marker="o", markersize=4, linewidth=2, color=col, label=NAMES[key])
+        axes[1].axhline(base, color=col, linewidth=1, linestyle="--")
+    axes[1].set_xlabel("Frozen copies' share of output")
+    axes[1].set_ylim(0, 0.6)
+    axes[1].yaxis.grid(True, color="#e4e3de", linewidth=0.6)
+    axes[1].legend(loc="lower left", fontsize=7)
+    axes[1].set_title("EarVN (dashed: naive)", fontsize=9, color=INK)
+    fig.tight_layout()
+    fig.savefig(OUT / "r5b_memory.pdf")
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
+    fig_r5b()
     fig_r2()
     fig_matrix()
     fig_cms()
