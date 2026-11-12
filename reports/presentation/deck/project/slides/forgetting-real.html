@@ -1,0 +1,30 @@
+<section id="forgetting-real" data-transition="fade" style="background:#FAF9F5;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#1F5FAE">RQ1 · Is forgetting real?</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">Yes: every model family forgets on large data</h2>
+</div>
+<div style="flex:1;display:flex;gap:80px;align-items:start">
+<div style="width:820px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:120px;font-weight:600;line-height:0.95;color:#1F5FAE">9 of 20</p>
+<p style="font-size:30px;line-height:1.4;color:#4A5260">model–dataset cells show forgetting on every seed</p>
+</div>
+<p style="font-size:26px;line-height:1.4;color:#18202B;background:#F1EFE8;border-left:6px solid #2A78D6;border-radius:0px 12px 12px 0px;padding:16px 22px"><b>Counted only if, on every seed:</b> forgetting ≥ 0.10, and final accuracy at least 0.10 below the joint model.</p>
+<table style="font-size:26px;color:#18202B">
+<tr><th style="width:24%;text-align:left">Dataset</th><th style="width:15%;text-align:left">Seeds</th><th style="width:17%;text-align:left">Models shown</th><th style="width:44%;text-align:left">Note</th></tr>
+<tr><td>EarVN1.0</td><td>3</td><td><b>5 of 5</b></td><td>forgetting 0.33–0.48</td></tr>
+<tr><td>AWE</td><td>5</td><td>3 of 5</td><td>images in the wild</td></tr>
+<tr><td>AMI</td><td>5</td><td>1 of 5</td><td>accuracy near ceiling</td></tr>
+<tr><td>IITD-I</td><td>5</td><td>0 of 5</td><td>ceiling hides it</td></tr>
+</table>
+<p style="font-size:28px;line-height:1.4;color:#18202B">CNN or transformer makes no difference.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px;align-items:center">
+<img src="/_blob/e21267f6f4ccd2454555913f4fc94867" alt="Accuracy matrix of naive training on EarVN1.0 with ConvNeXt-T, seed 1: task 1 falls from 0.88 to 0.46 as later tasks are learned" style="width:696px;height:580px;object-fit:contain">
+<p style="font-size:24px;line-height:1.35;color:#6E7480;text-align:center;width:680px">EarVN, ConvNeXt-T, seed 1. Row: after training on task t. Task 1 falls from 0.88 to 0.46.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">9</p>
+<aside>(55 seconds) The answer to RQ1 is yes. I used a strict rule, fixed before the runs: on every seed, forgetting must be at least 0.10, and the final accuracy must be at least 0.10 below the model trained on everyone at once. EarVN has 3 seeds, the other datasets 5, and one failing seed is enough to rule a cell out. It is shown in 9 of the 20 model–dataset cells. On EarVN, the largest dataset, all five families forget heavily, with rank-1 forgetting between 0.33 and 0.48. AWE shows it for three families and AMI for one. IITD shows none, because accuracy there is near the ceiling and hides it. Whether the model is a CNN or a transformer does not matter. On the right is one accuracy matrix: each row is the model after learning one more task. Read down the first column: task 1 starts at 0.88 and ends at 0.46.</aside>
+</section>

@@ -1,0 +1,21 @@
+{
+  "v": 4,
+  "createdOnFiles": {"v": 1, "at": "2026-11-09T12:10:00Z"},
+  "lists": "css",
+  "title": "Catastrophic Forgetting in Continual Ear Recognition",
+  "cover": "cover",
+  "order": ["cover", "problem", "questions", "rq1", "benchmark", "measuring", "pipeline", "evaluation", "forgetting-real", "rq2", "nested-learning", "cms", "cms-model", "twist", "rq3", "clue", "a-ruled-out", "suspect-b", "share", "culprit", "chain", "close", "thanks", "b1-r3", "b2-variants", "b3-oracle", "b4-rules"],
+  "sections": {
+    "s1": {"description": "The problem: recognition systems forget people they already know.", "start": "cover"},
+    "s2": {"description": "Is forgetting real? A frozen benchmark says yes, on large data.", "start": "rq1"},
+    "s3": {"description": "The promise of Nested Learning, and the twist: CMS did not help.", "start": "rq2"},
+    "s4": {"description": "The investigation: testing why CMS failed, suspect by suspect.", "start": "rq3"},
+    "s5": {"description": "The answer, contributions and next steps.", "start": "chain"},
+    "s6": {"description": "Backup slides for questions.", "start": "b1-r3"}
+  },
+  "faces": {
+    "source-serif-4": {"family": "Source Serif 4", "href": "https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400..700;1,400..700&display=swap"},
+    "ibm-plex-sans": {"family": "IBM Plex Sans", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"}
+  },
+  "designSystems": []
+}

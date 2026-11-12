@@ -1,0 +1,22 @@
+<section id="b1-r3" data-transition="fade" style="background:#F1EFE8;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#6E7480">Backup · RQ2</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">R3: CMS against naive training on the 9 cells</h2>
+</div>
+<table style="font-size:24px;color:#18202B">
+<tr><th style="width:26%;text-align:left">Cell</th><th style="width:13%;text-align:right">Naive forg.</th><th style="width:13%;text-align:right">CMS forg.</th><th style="width:16%;text-align:right">CMS better</th><th style="width:16%;text-align:right">Final change</th><th style="width:16%;text-align:left">Verdict</th></tr>
+<tr><td>AMI DeiT-S</td><td style="text-align:right">0.161</td><td style="text-align:right">0.129</td><td style="text-align:right">3 of 5</td><td style="text-align:right">+0.037</td><td>not reduced</td></tr>
+<tr><td>AWE ConvNeXt-T</td><td style="text-align:right">0.232</td><td style="text-align:right">0.243</td><td style="text-align:right">2 of 5</td><td style="text-align:right">−0.026</td><td>not reduced</td></tr>
+<tr><td>AWE DeiT-S</td><td style="text-align:right">0.271</td><td style="text-align:right">0.250</td><td style="text-align:right">2 of 5</td><td style="text-align:right">+0.057</td><td>not reduced</td></tr>
+<tr><td>AWE Swin-T</td><td style="text-align:right">0.286</td><td style="text-align:right">0.296</td><td style="text-align:right">2 of 5</td><td style="text-align:right">−0.017</td><td>not reduced</td></tr>
+<tr><td>EarVN ResNet-50</td><td style="text-align:right">0.411</td><td style="text-align:right">0.409</td><td style="text-align:right">2 of 3</td><td style="text-align:right">−0.007</td><td>not reduced</td></tr>
+<tr><td>EarVN ConvNeXt-T</td><td style="text-align:right">0.407</td><td style="text-align:right">0.371</td><td style="text-align:right">3 of 3</td><td style="text-align:right">+0.014</td><td>not reduced</td></tr>
+<tr><td>EarVN MobileNetV3</td><td style="text-align:right">0.329</td><td style="text-align:right">0.312</td><td style="text-align:right">3 of 3</td><td style="text-align:right">+0.013</td><td>not reduced</td></tr>
+<tr><td>EarVN DeiT-S</td><td style="text-align:right">0.476</td><td style="text-align:right">0.479</td><td style="text-align:right">1 of 3</td><td style="text-align:right">−0.005</td><td>not reduced</td></tr>
+<tr><td>EarVN Swin-T</td><td style="text-align:right">0.463</td><td style="text-align:right">0.452</td><td style="text-align:right">2 of 3</td><td style="text-align:right">+0.010</td><td>not reduced</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.35;color:#6E7480">Rank-1 forgetting, mean over seeds. Reduced needs a mean drop of at least 0.05 and every seed better; the largest drop is 0.036 (EarVN ConvNeXt-T).</p>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">B1</p>
+<aside>Backup. The full R3 table. Note EarVN ConvNeXt-T: CMS was better on all three seeds, but the drop is only 0.036, below the 0.05 the rule requires. AMI DeiT-S drops 0.032 but only on 3 of 5 seeds.</aside>
+</section>

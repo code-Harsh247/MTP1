@@ -1,0 +1,27 @@
+<section id="b2-variants" data-transition="fade" style="background:#F1EFE8;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#6E7480">Backup · RQ3</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">Every CMS variant, judged by the same rule</h2>
+</div>
+<div style="flex:1;display:flex;gap:48px;align-items:center">
+<div style="width:900px;display:flex;flex-direction:column;gap:20px">
+<table style="font-size:24px;color:#18202B">
+<tr><th style="width:27%;text-align:left">Stage</th><th style="width:43%;text-align:left">Variant</th><th style="width:16%;text-align:right">Reduced</th><th style="width:14%;text-align:right">Fixed</th></tr>
+<tr><td>R3 (pre-registered)</td><td>CMS, periods 1, 16, 256</td><td style="text-align:right">0 of 9</td><td style="text-align:right">0</td></tr>
+<tr><td>R3 secondary</td><td>Replay + CMS vs. replay</td><td style="text-align:right">0 of 20</td><td style="text-align:right">0</td></tr>
+<tr><td>R4</td><td>Periods 1, S, 2S (task-aligned)</td><td style="text-align:right">2 of 9</td><td style="text-align:right">0</td></tr>
+<tr><td>R4b</td><td>Consolidation at task ends, β = 0.5</td><td style="text-align:right">0 of 9</td><td style="text-align:right">0</td></tr>
+<tr><td>R5</td><td>Full-size slow updates (EarVN CNNs)</td><td style="text-align:right">0 of 4</td><td style="text-align:right">0</td></tr>
+<tr><td>R5b (oracle)</td><td>Copies 2–3 frozen after task 1</td><td style="text-align:right">2 of 9</td><td style="text-align:right">1</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.35;color:#6E7480">R4 to R5b are exploratory: designed after R3 was seen, each committed before its own runs. S = steps per task.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="/_blob/98fa8ff4ed8d6a444b86ef166a58c1db" alt="Bar chart of rank-1 forgetting on the 9 cells for naive training and the three CMS variants R3, R4 and R4b" style="width:716px;height:330px;object-fit:contain">
+<p style="font-size:24px;color:#6E7480">Forgetting: naive vs. R3, R4, R4b</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">B2</p>
+<aside>Backup. All the CMS variants in one place, all judged by the R3 rule. R4’s two reduced cells are AMI DeiT-S (0.161 to 0.100) and EarVN ResNet-50 (0.411 to 0.353). R5’s other variant, the learning rate scaled by the period, diverged on ConvNeXt-T. The R5b oracle is an upper bound, not a method.</aside>
+</section>

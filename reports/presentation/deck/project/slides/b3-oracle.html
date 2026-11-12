@@ -1,0 +1,22 @@
+<section id="b3-oracle" data-transition="fade" style="background:#F1EFE8;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#6E7480">Backup · R5b</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">The perfect-memory oracle, cell by cell</h2>
+</div>
+<table style="font-size:24px;color:#18202B">
+<tr><th style="width:24%;text-align:left">Cell</th><th style="width:20%;text-align:right">Task-1 forg.</th><th style="width:12%;text-align:right">Seeds</th><th style="width:16%;text-align:right">Forgetting</th><th style="width:15%;text-align:right">Final</th><th style="width:13%;text-align:left">R3 test</th></tr>
+<tr><td>EarVN ConvNeXt-T</td><td style="text-align:right">0.445 → 0.272</td><td style="text-align:right">3 of 3</td><td style="text-align:right">0.407 → 0.317</td><td style="text-align:right">0.597 → 0.636</td><td>reduced</td></tr>
+<tr><td>EarVN ResNet-50</td><td style="text-align:right">0.432 → 0.268</td><td style="text-align:right">3 of 3</td><td style="text-align:right">0.411 → 0.338</td><td style="text-align:right">0.553 → 0.578</td><td>reduced</td></tr>
+<tr><td>EarVN MobileNetV3</td><td style="text-align:right">0.287 → 0.264</td><td style="text-align:right">2 of 3</td><td style="text-align:right">0.329 → 0.306</td><td style="text-align:right">0.536 → 0.525</td><td>no</td></tr>
+<tr><td>EarVN DeiT-S</td><td style="text-align:right">0.525 → 0.438</td><td style="text-align:right">3 of 3</td><td style="text-align:right">0.476 → 0.444</td><td style="text-align:right">0.524 → 0.538</td><td>no</td></tr>
+<tr><td>EarVN Swin-T</td><td style="text-align:right">0.502 → 0.436</td><td style="text-align:right">3 of 3</td><td style="text-align:right">0.463 → 0.430</td><td style="text-align:right">0.546 → 0.563</td><td>no</td></tr>
+<tr><td>AWE ConvNeXt-T</td><td style="text-align:right">0.329 → 0.243</td><td style="text-align:right">4 of 5</td><td style="text-align:right">0.232 → 0.221</td><td style="text-align:right">0.529 → 0.520</td><td>no</td></tr>
+<tr><td>AWE DeiT-S</td><td style="text-align:right">0.386 → 0.314</td><td style="text-align:right">3 of 5</td><td style="text-align:right">0.271 → 0.243</td><td style="text-align:right">0.340 → 0.369</td><td>no</td></tr>
+<tr><td>AWE Swin-T</td><td style="text-align:right">0.443 → 0.271</td><td style="text-align:right">4 of 5</td><td style="text-align:right">0.286 → 0.246</td><td style="text-align:right">0.426 → 0.417</td><td>no</td></tr>
+<tr><td>AMI DeiT-S</td><td style="text-align:right">0.157 → 0.086</td><td style="text-align:right">4 of 5</td><td style="text-align:right">0.161 → 0.079</td><td style="text-align:right">0.843 → 0.903</td><td>fixed</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.35;color:#6E7480">Naive → snapshot, rank-1, mean over seeds. Seeds: those with lower task-1 forgetting. Copies 2–3 frozen at the task-1 weights; mixing learned.</p>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">B3</p>
+<aside>Backup. The R5b oracle on every cell. Task-1 forgetting falls everywhere, by 0.02 on MobileNet up to 0.17 on the EarVN CNNs and AWE Swin-T. Only the two EarVN CNNs pass the reduced test on overall forgetting, and AMI DeiT-S passes fixed, but that is an oracle on the mildest dataset.</aside>
+</section>

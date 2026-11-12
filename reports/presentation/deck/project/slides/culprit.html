@@ -1,0 +1,32 @@
+<section id="culprit" data-transition="fade" style="background:#FAF9F5;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#C2511F">RQ3 · The investigation · The real culprit</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">Most forgetting happens outside the layers CMS covers</h2>
+</div>
+<div style="flex:1;display:flex;gap:56px;align-items:center">
+<div style="width:800px;display:flex;flex-direction:column;gap:12px">
+<img src="/_blob/0ddb6a05482eeec5b3f870879946eb25" alt="Bar chart of group-1 forgetting for the normal model and with two copies frozen after group 1, on all 9 model and dataset pairs: freezing lowers it everywhere, but large forgetting remains" style="width:800px;height:400px;object-fit:contain">
+<p style="font-size:24px;color:#6E7480">With two copies frozen after group 1, on all 9 pairs (mean over runs)</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:96px;font-weight:600;line-height:1.05;color:#C2511F">2 of 9</p>
+<p style="font-size:28px;line-height:1.4;color:#4A5260">pairs where freezing cut forgetting enough to count</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="font-size:24px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#6E7480">Where the lost accuracy sits</p>
+<table style="font-size:26px;color:#18202B">
+<tr><th style="width:50%;text-align:left">Model</th><th style="width:50%;text-align:left">Most of it is…</th></tr>
+<tr><td>EarVN ConvNeXt</td><td style="color:#1F5FAE">inside CMS</td></tr>
+<tr><td>EarVN ResNet</td><td style="color:#C2511F"><b>outside CMS</b></td></tr>
+<tr><td>EarVN DeiT</td><td style="color:#C2511F"><b>outside CMS</b></td></tr>
+<tr><td>AWE Swin</td><td style="color:#C2511F"><b>outside CMS</b></td></tr>
+</table>
+<p style="font-size:24px;line-height:1.35;color:#6E7480">Found by putting one part back at a time, as on slide 16.</p>
+</div>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">20</p>
+<aside>(60 seconds) Finally, I ran the frozen-copies test on all nine model and dataset pairs. Group 1’s forgetting drops everywhere, the green bars are always lower, but a lot of forgetting remains. Overall, freezing cut forgetting enough to count in only 2 of the 9 pairs. So I took four of these models apart, putting one part back at a time, like on slide 16. Only on ConvNeXt is most of the lost accuracy inside the CMS layers. On ResNet, DeiT and Swin, most of it is outside CMS, in the rest of the network. That is the real culprit: most forgetting happens in parts CMS doesn’t cover. Even a perfect frozen copy there can’t stop it.</aside>
+</section>

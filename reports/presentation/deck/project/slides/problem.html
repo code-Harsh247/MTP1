@@ -1,0 +1,51 @@
+<section id="problem" data-transition="fade" style="background:#FAF9F5;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#1F5FAE">Background</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">A real system keeps enrolling new people</h2>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:40px;align-items:center;justify-content:center">
+<div style="width:1360px;display:flex;flex-direction:column;gap:28px;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:20px;padding:36px 40px">
+<p style="font-size:24px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#6E7480;text-align:center">What the system must do</p>
+<div style="display:flex;gap:20px;align-items:stretch">
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;align-items:center;background:#F1EFE8;border-radius:14px;padding:24px">
+<p style="font-size:24px;color:#6E7480">Step 1</p>
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Enroll group 1</h3>
+<p style="font-size:24px;color:#4A5260">Must recognise:</p>
+<div style="display:flex;gap:8px">
+<p style="font-size:24px;font-weight:600;background:#E3EDF9;border-left:6px solid #2A78D6;border-radius:6px;padding:4px 12px">G1</p>
+</div>
+</div>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:40px;height:20px;align-self:center"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;align-items:center;background:#F1EFE8;border-radius:14px;padding:24px">
+<p style="font-size:24px;color:#6E7480">Step 2</p>
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Enroll group 2</h3>
+<p style="font-size:24px;color:#4A5260">Must recognise:</p>
+<div style="display:flex;gap:8px">
+<p style="font-size:24px;font-weight:600;background:#E3EDF9;border-left:6px solid #2A78D6;border-radius:6px;padding:4px 12px">G1</p>
+<p style="font-size:24px;font-weight:600;background:#FCE9DF;border-left:6px solid #EB6834;border-radius:6px;padding:4px 12px">G2</p>
+</div>
+</div>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:40px;height:20px;align-self:center"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;align-items:center;background:#F1EFE8;border-radius:14px;padding:24px">
+<p style="font-size:24px;color:#6E7480">Step 3</p>
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Enroll group 3</h3>
+<p style="font-size:24px;color:#4A5260">Must recognise:</p>
+<div style="display:flex;gap:8px">
+<p style="font-size:24px;font-weight:600;background:#E3EDF9;border-left:6px solid #2A78D6;border-radius:6px;padding:4px 12px">G1</p>
+<p style="font-size:24px;font-weight:600;background:#FCE9DF;border-left:6px solid #EB6834;border-radius:6px;padding:4px 12px">G2</p>
+<p style="font-size:24px;font-weight:600;background:#DFF3EA;border-left:6px solid #1BAF7A;border-radius:6px;padding:4px 12px">G3</p>
+</div>
+</div>
+</div>
+<p style="font-size:26px;line-height:1.4;color:#18202B;text-align:center">Each step updates the model with <b>only the new group</b>, yet it must still know everyone enrolled before.</p>
+</div>
+<div style="width:1360px;display:flex;gap:24px">
+<p style="flex:1;font-size:28px;font-weight:600;text-align:center;color:#18202B;background:#E3EDF9;border-radius:14px;padding:20px 16px">New groups arrive over time</p>
+<p style="flex:1;font-size:28px;font-weight:600;text-align:center;color:#18202B;background:#E3EDF9;border-radius:14px;padding:20px 16px">Old groups must still be recognised</p>
+<p style="flex:1;font-size:28px;font-weight:600;text-align:center;color:#18202B;background:#E3EDF9;border-radius:14px;padding:20px 16px">No retraining from scratch</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">2</p>
+<aside>(45 seconds) Think of a real ear recognition system. People are not enrolled all at once; new groups arrive over time. Each time a new group is added, the system must still recognise everyone enrolled before. And we should not have to retrain from scratch on everyone each time: that is slow and costly, and the old images may not even be kept. So each step updates the model with only the new group, but after step 3 it must still know groups 1, 2 and 3. Ears suit this well: they are stable with age and can be captured without contact.</aside>
+</section>

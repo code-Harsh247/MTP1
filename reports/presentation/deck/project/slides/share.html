@@ -1,0 +1,28 @@
+<section id="share" data-transition="fade" style="display:flex; flex-direction:column; gap:40px; padding:112px 128px 160px; background:#faf9f5">
+  <div style="display:flex; flex-direction:column; gap:16px">
+    <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#c2511f">RQ3 · The investigation · Suspect B</p>
+    <h2 style="font-family:'Source Serif 4', Georgia, serif; font-size:64px; font-weight:600; line-height:1.1; color:#18202b">Giving the frozen copies more say helps, at a cost</h2>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:28px; justify-content:center; flex:1">
+    <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; line-height:1.45; color:#4a5260">After group 1, fix how much say the frozen copies get in the mix, instead of letting the model choose (it chose 60%).</p>
+    <div style="display:flex; flex-direction:row; gap:40px; align-items:start">
+      <div style="width:1000px; display:flex; flex-direction:column; gap:12px">
+        <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#6e7480">EarVN ConvNeXt-T, mean of 3 runs</p>
+        <table style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; color:#18202b">
+          <tr><th style="width:34%">Frozen copies’ say</th><th style="width:33%; text-align:right">Group-1 forgetting (lower is better)</th><th style="width:33%; text-align:right">Accuracy on new people</th></tr>
+          <tr><td>60% (model’s choice)</td><td style="text-align:right">0.272</td><td style="text-align:right">0.929</td></tr>
+          <tr><td>80%</td><td style="text-align:right">0.228</td><td style="text-align:right">0.913</td></tr>
+          <tr><td>95%</td><td style="text-align:right; color:#1f5fae">0.171</td><td style="text-align:right; color:#c2511f">0.872</td></tr>
+        </table>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:16px; flex:1; padding:110px 0px 0px 0px">
+        <p style="padding:18px 22px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:26px; line-height:1.4; color:#18202b; background:#e3edf9; border-radius:12px"><b>It helps:</b> forgetting falls from 0.27 to 0.17.</p>
+        <p style="padding:18px 22px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:26px; line-height:1.4; color:#18202b; background:#fce9df; border-radius:12px"><b>The cost:</b> new people are learned worse (0.93 → 0.87).</p>
+      </div>
+    </div>
+    <p style="padding:24px 30px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:28px; line-height:1.45; color:#f4f1ea; background:#18202b; border-radius:16px">What’s still forgotten now sits outside CMS: in the neck and the rest of the backbone.</p>
+  </div>
+  <p style="position:absolute; bottom:64px; left:128px; width:1000px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#6e7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+  <p style="position:absolute; right:128px; bottom:64px; width:200px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; text-align:right; color:#6e7480">19</p>
+  <aside>(50 seconds) If the frozen copies are being outvoted, let’s give them more say. Normally the model chooses the mix itself, and it gave the two frozen copies 60% together. So after group 1, I fixed their say at 80%, and then 95%. On ConvNeXt it helps: group 1’s forgetting falls from 0.27 to 0.23 to 0.17. But there is a cost: the new people are learned worse, from 0.93 down to 0.87, because the model has less freedom to learn. And on DeiT, nothing changes at all. When I look inside the 95% model, what is still forgotten now sits outside CMS, in the neck and the rest of the backbone. That points to the real culprit.</aside>
+</section>

@@ -1,0 +1,51 @@
+<section id="pipeline" data-transition="fade" style="background:#FAF9F5;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#1F5FAE">RQ1 · Is forgetting real?</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">Training: one shared recipe for every model</h2>
+</div>
+<div style="display:flex;gap:16px;align-items:stretch">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:16px;padding:24px 28px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Ear image</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5260">resized to 128 × 96, which keeps the ear’s shape</p>
+</div>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:40px;height:20px;align-self:center"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#E3EDF9;border:1px solid #C6D9F1;border-radius:16px;padding:24px 28px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Backbone</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5260">ImageNet-pretrained, fully fine-tuned; CMS goes inside in RQ2</p>
+</div>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:40px;height:20px;align-self:center"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#E3EDF9;border:1px solid #C6D9F1;border-radius:16px;padding:24px 28px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Neck</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5260">dropout 0.3, linear, BatchNorm: a 512-d ear embedding</p>
+</div>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:40px;height:20px;align-self:center"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#FCE9DF;border:1px solid #F2CDB8;border-radius:16px;padding:24px 28px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">ArcFace head</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5260">angular-margin loss, s = 30, m = 0.3; training only</p>
+</div>
+</div>
+<div style="flex:1;display:flex;gap:24px">
+<div style="width:740px;display:flex;flex-direction:column;gap:16px;background:#F1EFE8;border-radius:20px;padding:32px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Learning the 5 tasks in turn</h3>
+<ul style="font-size:24px;line-height:1.5;color:#4A5260">
+<li>Each task trains only on its own new people (naive fine-tuning)</li>
+<li>The head adds the new people; only people seen so far compete in its softmax</li>
+<li>A fixed budget per task: 60–500 optimiser steps, 10% warm-up, then cosine decay</li>
+<li>Upper bound: one joint model on all people, 5× the steps</li>
+</ul>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:20px;padding:32px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">The recipe, identical for all</h3>
+<table style="font-size:24px;color:#18202B">
+<tr><th style="width:38%;text-align:left">Setting</th><th style="width:62%;text-align:left">Value</th></tr>
+<tr><td>Optimiser</td><td>AdamW, weight decay 0.05</td></tr>
+<tr><td>Learning rate</td><td>backbone tuned in R1 on seed 0; head 10⁻³</td></tr>
+<tr><td>Batch, precision</td><td>64 images, full fp32</td></tr>
+<tr><td>Augmentation</td><td>±20° rotation, 10% shift, 0.8–1.2 scale, colour jitter</td></tr>
+</table>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">7</p>
+<aside>(45 seconds) Every model is trained the same way. An ear image is resized to 128 by 96, which keeps the ear’s shape, and goes through the ImageNet-pretrained backbone, which is fully fine-tuned. A small neck — dropout, a linear layer and batch norm — produces a 512-dimensional ear embedding. An ArcFace head turns that into a training loss with an angular margin, which pulls images of the same person together; it is used only for training. The five tasks are learned in turn: each task trains only on its own new people. The head adds the new people as they arrive, and only people seen so far compete. Each task gets a fixed number of optimiser steps with a warm-up and cosine decay. The joint model, trained on everyone at once with five times the steps, is the upper bound. The recipe is identical for every model; only the backbone learning rate and the step budget were tuned, once, on seed 0, and then frozen.</aside>
+</section>

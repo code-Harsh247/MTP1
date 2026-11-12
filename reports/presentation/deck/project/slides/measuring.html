@@ -1,0 +1,68 @@
+<section id="measuring" data-transition="fade" style="background:#FAF9F5;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#1F5FAE">RQ1 · Is forgetting real?</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">How forgetting is measured</h2>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:22px;justify-content:center">
+<div style="display:flex;gap:32px;align-items:center;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:20px;padding:24px 32px">
+<div style="width:340px;display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:40px;font-weight:700;color:#1F5FAE">1</p>
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Accuracy on one task</h3>
+</div>
+<div style="flex:1;display:flex;gap:12px;align-items:center">
+<p style="flex:1;font-size:24px;line-height:1.35;color:#18202B;background:#F1EFE8;border-radius:12px;padding:16px 18px"><b>Enroll</b> each person from unseen photos, with the current model</p>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:32px;height:16px"></x-shape>
+<p style="flex:1;font-size:24px;line-height:1.35;color:#18202B;background:#F1EFE8;border-radius:12px;padding:16px 18px"><b>Show</b> other unseen photos; the model names the closest person</p>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:32px;height:16px"></x-shape>
+<p style="flex:1;font-size:24px;line-height:1.35;color:#18202B;background:#E3EDF9;border-radius:12px;padding:16px 18px"><b>Accuracy</b> = share of photos named correctly</p>
+</div>
+</div>
+<div style="display:flex;gap:32px;align-items:center;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:20px;padding:24px 32px">
+<div style="width:340px;display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:40px;font-weight:700;color:#1F5FAE">2</p>
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Repeat after every task</h3>
+<p style="font-size:24px;color:#6E7480">task 1, EarVN ConvNeXt-T</p>
+</div>
+<div style="flex:1;display:flex;gap:12px">
+<div style="flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;background:#E3EDF9;border:2px solid #2A78D6;border-radius:12px;padding:12px 8px">
+<p style="font-size:24px;color:#4A5260">after task 1</p>
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:44px;font-weight:600;color:#1F5FAE">0.88</p>
+<p style="font-size:24px;font-weight:600;color:#1F5FAE">best</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;background:#F1EFE8;border:2px solid #F1EFE8;border-radius:12px;padding:12px 8px">
+<p style="font-size:24px;color:#4A5260">after task 2</p>
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:44px;font-weight:600;color:#18202B">0.49</p>
+<p style="font-size:24px;color:#F1EFE8">.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;background:#F1EFE8;border:2px solid #F1EFE8;border-radius:12px;padding:12px 8px">
+<p style="font-size:24px;color:#4A5260">after task 3</p>
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:44px;font-weight:600;color:#18202B">0.51</p>
+<p style="font-size:24px;color:#F1EFE8">.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;background:#F1EFE8;border:2px solid #F1EFE8;border-radius:12px;padding:12px 8px">
+<p style="font-size:24px;color:#4A5260">after task 4</p>
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:44px;font-weight:600;color:#18202B">0.51</p>
+<p style="font-size:24px;color:#F1EFE8">.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;background:#FCE9DF;border:2px solid #EB6834;border-radius:12px;padding:12px 8px">
+<p style="font-size:24px;color:#4A5260">after task 5</p>
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:44px;font-weight:600;color:#C2511F">0.46</p>
+<p style="font-size:24px;font-weight:600;color:#C2511F">final</p>
+</div>
+</div>
+</div>
+<div style="display:flex;gap:32px;align-items:center;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:20px;padding:24px 32px">
+<div style="width:340px;display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:40px;font-weight:700;color:#1F5FAE">3</p>
+<h3 style="font-size:30px;font-weight:600;color:#18202B">Forgetting</h3>
+</div>
+<div style="flex:1;display:flex;gap:40px;align-items:center">
+<p style="font-family:'Source Serif 4', Georgia, serif;font-size:48px;font-weight:600;color:#18202B;white-space:nowrap">best − final = <span style="color:#1F5FAE">0.88</span> − <span style="color:#C2511F">0.46</span> = 0.42</p>
+<p style="flex:1;font-size:24px;line-height:1.4;color:#4A5260">Then averaged over tasks 1–4. Task 5 is left out: nothing comes after it.</p>
+</div>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">6</p>
+<aside>(45 seconds) How do I measure forgetting? First, the accuracy on one task. Each person in the task is enrolled from a few photos the model never trained on, using the current model. Then the model is shown other unseen photos of those people and names the closest one. Accuracy is the share it gets right. On EarVN, a task has 23 people and about 750 test photos. Second, I repeat this after every task. Here is task 1: 0.88 right after it is learned, then it falls as new groups arrive, ending at 0.46. Third, forgetting is the best score minus the final score: 0.88 minus 0.46 is 0.42. I average that over tasks 1 to 4; task 5 is left out because nothing comes after it.</aside>
+</section>

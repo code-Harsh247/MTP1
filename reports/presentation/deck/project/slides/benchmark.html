@@ -1,0 +1,49 @@
+<section id="benchmark" data-transition="fade" style="display:flex; flex-direction:column; gap:48px; padding:112px 128px 160px; background:#faf9f5">
+  <div style="display:flex; flex-direction:column; gap:16px">
+    <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#1f5fae">RQ1 · Is forgetting real?</p>
+    <h2 style="font-family:'Source Serif 4', Georgia, serif; font-size:64px; font-weight:600; line-height:1.1; color:#18202b">Building the baseline</h2>
+  </div>
+  <div style="display:flex; flex-direction:row; gap:56px; flex:1">
+    <div style="width:860px; display:flex; flex-direction:column; gap:20px">
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#6e7480">Five model families, ImageNet-pretrained</p>
+      <table style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:26px; color:#18202b">
+        <tr><th style="width:36%">Family</th><th style="width:28%">Model</th><th style="width:16%; text-align:right">Params</th><th style="width:20%; text-align:right">Feature size</th></tr>
+        <tr><td>Classic CNN</td><td>ResNet-50</td><td style="text-align:right">23.5M</td><td style="text-align:right">2048</td></tr>
+        <tr><td>Modern CNN</td><td>ConvNeXt-T</td><td style="text-align:right">27.8M</td><td style="text-align:right">768</td></tr>
+        <tr><td>Lightweight CNN</td><td>MobileNetV3-L</td><td style="text-align:right">4.2M</td><td style="text-align:right">1280</td></tr>
+        <tr><td>Plain transformer</td><td>DeiT-S</td><td style="text-align:right">21.6M</td><td style="text-align:right">384</td></tr>
+        <tr><td>Hierarchical transformer</td><td>Swin-T</td><td style="text-align:right">27.5M</td><td style="text-align:right">768</td></tr>
+      </table>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:20px; flex:1">
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#6e7480">Four public ear datasets</p>
+      <table style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:26px; color:#18202b">
+        <tr><th style="width:26%">Dataset</th><th style="width:17%; text-align:right">People</th><th style="width:19%; text-align:right">Images</th><th style="width:38%">Images are</th></tr>
+        <tr><td>AMI</td><td style="text-align:right">100</td><td style="text-align:right">700</td><td>close-up, uniform</td></tr>
+        <tr><td>AWE</td><td style="text-align:right">100</td><td style="text-align:right">1,000</td><td>in the wild</td></tr>
+        <tr><td>IITD-I</td><td style="text-align:right">221</td><td style="text-align:right">793</td><td>grayscale</td></tr>
+        <tr><td>EarVN1.0</td><td style="text-align:right">164</td><td style="text-align:right">28,412</td><td>many per person</td></tr>
+      </table>
+    </div>
+  </div>
+  <div style="display:flex; gap:24px">
+    <div style="flex:1; display:flex; flex-direction:column; gap:12px; padding:22px 28px; background:#fffefb; border:1px solid #e6e2d8; border-radius:20px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:28px; font-weight:600; color:#18202b">Splitting the people</h3>
+      <div style="display:flex; gap:6px">
+        <p style="flex:7; padding:12px 14px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#18202b; background:#e3edf9; border-radius:10px"><b>70%</b> · 5 groups = the 5 tasks</p>
+        <p style="flex:3; padding:12px 14px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#18202b; background:#f1efe8; border-radius:10px"><b>30%</b> · never trained</p>
+      </div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:12px; padding:22px 28px; background:#fffefb; border:1px solid #e6e2d8; border-radius:20px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:28px; font-weight:600; color:#18202b">Splitting each person’s photos</h3>
+      <div style="display:flex; gap:6px">
+        <p style="flex:5; padding:12px 14px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#18202b; background:#e3edf9; border-radius:10px"><b>Training</b></p>
+        <p style="flex:3; padding:12px 14px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#18202b; background:#fce9df; border-radius:10px"><b>Gallery</b> · enroll</p>
+        <p style="flex:3; padding:12px 14px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#18202b; background:#dff3ea; border-radius:10px"><b>Probes</b> · test</p>
+      </div>
+    </div>
+  </div>
+  <p style="position:absolute; bottom:64px; left:128px; width:1000px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#6e7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+  <p style="position:absolute; right:128px; bottom:64px; width:200px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; text-align:right; color:#6e7480">5</p>
+  <aside>(50 seconds) To answer RQ1, I built a frozen benchmark. It covers five model families, all ImageNet-pretrained: a classic CNN, ResNet-50; a modern CNN, ConvNeXt-T; a lightweight CNN, MobileNetV3; a plain transformer, DeiT-S; and a hierarchical transformer, Swin-T. They run on four public ear datasets. In each dataset, the training people are split into five equal groups of new people — between 14 and 31 people per group — and the model learns them one group at a time. These are the five tasks. The other 30% of people are never trained on; they test whether the system rejects strangers. Each trained person’s photos are split too: most for training, a few to enroll them (the gallery), and a few to test them (the probes); gallery and probe photos are never trained on. Forgetting is measured per old task: its best accuracy at any point, minus its accuracy at the end, averaged over tasks 1 to 4. For example, if task 1 peaked at 0.88 and ended at 0.46, it forgot 0.42. Every rule was committed before the runs it judges, over 1017 training runs.</aside>
+</section>

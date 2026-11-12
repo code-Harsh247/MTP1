@@ -1,0 +1,45 @@
+<section id="clue" data-transition="fade" style="background:#FAF9F5;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#C2511F">RQ3 · The investigation · Clue</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">Right place, but the slow copies barely learn</h2>
+</div>
+<div style="flex:1;display:flex;gap:32px">
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:20px;padding:32px 36px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">1 · Where is the forgetting?</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5260">Plain model, after group 5. Put one part back to how it was after group 1. How much of group 1’s lost accuracy returns?</p>
+<div style="display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between"><p style="font-size:24px;font-weight:600;color:#18202B">Layers CMS replaces</p><p style="font-size:24px;font-weight:700;color:#1F5FAE">93%</p></div>
+<div style="width:651px;height:28px;background:#2A78D6;border-radius:6px"></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between"><p style="font-size:24px;color:#18202B">Neck</p><p style="font-size:24px;font-weight:600;color:#4A5260">29%</p></div>
+<div style="width:203px;height:28px;background:#B8BDC5;border-radius:6px"></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between"><p style="font-size:24px;color:#18202B">Rest of the backbone</p><p style="font-size:24px;font-weight:600;color:#4A5260">18%</p></div>
+<div style="width:126px;height:28px;background:#B8BDC5;border-radius:6px"></div>
+</div>
+</div>
+<div style="flex:1"></div>
+<p style="font-size:26px;line-height:1.4;color:#18202B;background:#E3EDF9;border-radius:12px;padding:16px 20px">The forgetting is in the layers CMS replaces. <b>CMS is in the right place.</b></p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px;background:#FFFEFB;border:1px solid #E6E2D8;border-radius:20px;padding:32px 36px">
+<h3 style="font-size:30px;font-weight:600;color:#18202B">2 · Do the slow copies learn?</h3>
+<div style="display:flex;gap:28px;align-items:center">
+<img src="/_blob/5184b14407bdd2d543fdd052433af489" alt="Line chart of how far each CMS copy changed from its pretrained weights after each group: the fast copy reaches about 0.10, copy 2 about 0.04, the slow copy about 0.01" style="width:480px;height:361px;object-fit:contain">
+<div style="flex:1;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:10px;align-items:center"><div style="width:22px;height:22px;background:#2A78D6;border-radius:50%"></div><p style="font-size:24px;color:#18202B">fast copy</p></div>
+<div style="display:flex;gap:10px;align-items:center"><div style="width:22px;height:22px;background:#EB6834;border-radius:50%"></div><p style="font-size:24px;color:#18202B">medium copy</p></div>
+<div style="display:flex;gap:10px;align-items:center"><div style="width:22px;height:22px;background:#1BAF7A;border-radius:50%"></div><p style="font-size:24px;color:#18202B">slow copy</p></div>
+<p style="font-size:24px;line-height:1.35;color:#6E7480">How much each copy changed from its starting weights</p>
+</div>
+</div>
+<div style="flex:1"></div>
+<p style="font-size:26px;line-height:1.4;color:#18202B;background:#FCE9DF;border-radius:12px;padding:16px 20px">The fast copy changes by ~10%, the slow copy by ~1%. <b>It never really learns the people, so it has nothing to keep.</b></p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">16</p>
+<aside>(60 seconds) To find out why CMS failed, I looked inside the model, on EarVN ConvNeXt. First question: where is the forgetting? I took the plain model after all five groups and put back one part at a time to how it was after group 1. Putting back just the layers that CMS replaces brings back 93% of what group 1 lost. The neck brings back 29%, the rest of the backbone 18%. So the forgetting sits in exactly the layers CMS replaces: CMS is in the right place. Second question: do the slow copies actually learn? This chart shows how much each copy changed from its starting weights. The fast copy changes by about 10%. The slow copy changes by only about 1%. It barely learns the people at all, so it has nothing to keep.</aside>
+</section>

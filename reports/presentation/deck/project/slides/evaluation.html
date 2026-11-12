@@ -1,0 +1,44 @@
+<section id="evaluation" data-transition="fade" style="background:#faf9f5">
+  <p id="e1-u8brz3" style="position:absolute; bottom:64px; left:128px; width:1000px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#6e7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+  <p id="e2-u8brz3" style="position:absolute; right:128px; bottom:64px; width:200px; font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; text-align:right; color:#6e7480">8</p>
+  <div id="pa0a8aea11f14r0-83652215" style="position:absolute; top:112px; left:128px; width:1664px; height:120px; display:flex; flex-direction:column; gap:16px">
+    <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#1f5fae">RQ1 · Is forgetting real?</p>
+    <h2 style="font-family:'Source Serif 4', Georgia, serif; font-size:64px; font-weight:600; line-height:1.1; color:#18202b">Evaluation: re-enroll everyone after every task</h2>
+  </div>
+  <div id="pa0a8aea11f14r1-83652215" style="position:absolute; top:272px; left:128px; width:1664px; height:193px; display:flex; flex-direction:row; gap:16px">
+    <div style="display:flex; flex-direction:column; gap:8px; flex:1; padding:24px 28px; background:#f1efe8; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#18202b">1 · Enroll</h3>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4a5260">embed each person’s gallery images with the current model; their mean is one cosine prototype</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:40px; height:20px; align-self:center; background:#9aa1ac"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:8px; flex:1; padding:24px 28px; background:#f1efe8; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#18202b">2 · Identify</h3>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4a5260">match held-out probes to the nearest prototype, plus probes of people never trained on</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:40px; height:20px; align-self:center; background:#9aa1ac"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:8px; flex:1; padding:24px 28px; background:#f1efe8; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#18202b">3 · Score</h3>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4a5260">rank-1 on task j after task t fills A[t][j], a 5 × 5 matrix per run</p>
+    </div>
+  </div>
+  <div id="pa0a8aea11f14r2-83652215" style="position:absolute; top:505px; left:128px; width:1664px; display:flex; flex-direction:row; gap:48px; align-items:start">
+    <div style="width:860px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#6e7480">Held-out images, never trained on</p>
+      <table style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; color:#18202b">
+        <tr><th style="width:24%">Dataset</th><th style="width:24%; text-align:right">Tasks × people</th><th style="width:28%; text-align:right">Gallery images</th><th style="width:24%; text-align:right">Probes</th></tr>
+        <tr><td>AMI</td><td style="text-align:right">5 × 14</td><td style="text-align:right">140</td><td style="text-align:right">70</td></tr>
+        <tr><td>AWE</td><td style="text-align:right">5 × 14</td><td style="text-align:right">140</td><td style="text-align:right">70</td></tr>
+        <tr><td>IITD-I</td><td style="text-align:right">5 × 31</td><td style="text-align:right">400 (train)</td><td style="text-align:right">155</td></tr>
+        <tr><td>EarVN1.0</td><td style="text-align:right">5 × 23</td><td style="text-align:right">230</td><td style="text-align:right">3,732</td></tr>
+      </table>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:16px; flex:1">
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#6e7480">Metrics</p>
+      <div style="display:flex; flex-direction:column; gap:16px; padding:24px 28px; background:#fffefb; border:1px solid #e6e2d8; border-radius:16px">
+        <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.45; color:#4a5260"><span style="color:#18202b"><b>Rank-1</b></span> identification: the primary metric</p>
+        <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.45; color:#4a5260"><span style="color:#18202b"><b>Open-set:</b></span> detection rate at 1, 5 and 10% false alarms, and AUROC of known vs. unknown</p>
+      </div>
+    </div>
+  </div>
+  <aside>(45 seconds) Evaluation happens after every task, and the head is not used. Each person who has been trained on is enrolled again with the current model: their gallery images are embedded and averaged into one cosine prototype. Held-out probe images, which were never trained on, are matched to the nearest prototype, and probes from people never trained on are mixed in to test open-set rejection. The rank-1 accuracy on task j after training on task t fills one entry of a 5 by 5 accuracy matrix. The table shows what is held out per dataset: on EarVN, 23 people per task, with 3,732 held-out probes. IITD has too few images per person, so its training images serve as the gallery. Rank-1 is the primary metric; open-set detection rates and AUROC are also reported. The key point: because everyone is re-enrolled with the current model, forgetting here means the embedding itself has drifted, which is exactly what matters in a deployed system.</aside>
+</section>

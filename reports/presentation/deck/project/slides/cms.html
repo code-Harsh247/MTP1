@@ -1,0 +1,44 @@
+<section id="cms" data-transition="fade" style="background:#FAF9F5;color:#18202B;font-family:'IBM Plex Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#1F5FAE">RQ2 · The promise</p>
+<h2 style="font-family:'Source Serif 4', Georgia, serif;font-size:64px;font-weight:600;line-height:1.1;color:#18202B">The Continuum Memory System (CMS)</h2>
+</div>
+<div style="flex:1;display:flex;gap:56px;align-items:center">
+<div style="width:820px;display:flex;gap:16px;align-items:center">
+<div style="width:330px;display:flex;flex-direction:column;gap:14px">
+<p style="font-size:24px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#6E7480">One CMS layer</p>
+<div style="display:flex;flex-direction:column;gap:4px;background:#E3EDF9;border-left:8px solid #2A78D6;border-radius:0px 14px 14px 0px;padding:20px 24px">
+<h3 style="font-size:28px;font-weight:600;color:#18202B">Copy 1 · fast</h3>
+<p style="font-size:24px;color:#4A5260">every step</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;background:#FCE9DF;border-left:8px solid #EB6834;border-radius:0px 14px 14px 0px;padding:20px 24px">
+<h3 style="font-size:28px;font-weight:600;color:#18202B">Copy 2 · medium</h3>
+<p style="font-size:24px;color:#4A5260">every 16 steps</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;background:#DFF3EA;border-left:8px solid #1BAF7A;border-radius:0px 14px 14px 0px;padding:20px 24px">
+<h3 style="font-size:28px;font-weight:600;color:#18202B">Copy 3 · slow</h3>
+<p style="font-size:24px;color:#4A5260">every 256 steps</p>
+</div>
+</div>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:48px;height:24px"></x-shape>
+<div style="width:230px;display:flex;flex-direction:column;gap:8px;background:#ECEAF6;border:1px solid #CFCBE6;border-radius:16px;padding:28px 24px">
+<h3 style="font-size:28px;font-weight:600;color:#18202B">Weighted sum</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5260">learned mixing weights, equal at the start</p>
+</div>
+<x-shape kind="arrow-right" style="background:#9AA1AC;width:48px;height:24px"></x-shape>
+<p style="font-size:28px;font-weight:600;color:#18202B">Output</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:18px">
+<p style="font-size:26px;line-height:1.4;color:#4A5260"><b style="color:#18202B">Replaces one MLP block</b> with k copies that differ only in how often they are updated.</p>
+<p style="font-size:26px;line-height:1.4;color:#4A5260"><b style="color:#18202B">Update rule:</b> each copy changes once per period C, by the sum of the gradients it gathered (NL Eq. 71):</p>
+<p style="font-size:28px;color:#18202B;background:#F1EFE8;border-radius:10px;padding:14px 20px;text-align:center">θ ← θ − Σ η ∇L, summed over its last C steps</p>
+<p style="font-size:26px;line-height:1.4;color:#4A5260"><b style="color:#18202B">Independent variant:</b> the output is a learned weighted sum of all copies (Eq. 74).</p>
+<p style="font-size:26px;line-height:1.4;color:#4A5260"><b style="color:#18202B">Pretrained start:</b> every copy begins as the pretrained MLP (Sec. 7.3).</p>
+<p style="font-size:26px;line-height:1.4;color:#4A5260"><b style="color:#18202B">Evidence:</b> less forgetting than EWC on class-incremental text classification.</p>
+</div>
+</div>
+<p style="font-size:24px;line-height:1.4;color:#6E7480">A. Behrouz, M. Razaviyayn, P. Zhong and V. Mirrokni, “Nested Learning: The Illusion of Deep Learning Architectures,” NeurIPS 2025.</p>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#6E7480">Catastrophic Forgetting in Continual Ear Recognition</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#6E7480;text-align:right">12</p>
+<aside>(45 seconds) The Continuum Memory System, CMS, is how Nested Learning turns this idea into a layer. It replaces one MLP block with several copies that differ only in how often they are updated. In my setup there are three: a fast copy updated every step, a medium one every 16 steps, and a slow one every 256 steps. Each copy is updated once per period, by the sum of the gradients it gathered during that period — equation 71 in the paper. In the independent variant, which I use, the layer’s output is a learned weighted sum of the copies. All copies start from the pretrained MLP, so CMS can be dropped into a pretrained backbone. And in the paper, CMS reduced forgetting compared with EWC on class-incremental text classification. So the intended effect is clear: when the fast copy overwrites old people, the slow copy still remembers them.</aside>
+</section>
